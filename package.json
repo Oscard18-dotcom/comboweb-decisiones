@@ -1,0 +1,46 @@
+{
+  "name": "comboweb-decisiones",
+  "version": "1.0.0",
+  "description": "ComboWeb Decisiones - EN COMBO (ComboWeb App + pestaña \"Toma de decisiones\" para administración)",
+  "main": "src/server.js",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js",
+    "db:init": "node scripts/init-db.js",
+    "db:seed": "node scripts/seed.js",
+    "test:smoke": "node scripts/smoke-test.js",
+    "test:sprint3": "node scripts/test-sprint3.js",
+    "test:sprint4": "node scripts/test-sprint4.js",
+    "test:ui": "node scripts/test-ui.js",
+    "test:sprint5": "node scripts/test-sprint5.js",
+    "crear-admin": "node scripts/crear-admin.js",
+    "verificar": "node scripts/verificar-despliegue.js",
+    "test:sprint6": "node scripts/test-sprint6.js",
+    "instalar": "node scripts/instalar.js",
+    "respaldo": "node scripts/respaldo.js",
+    "test:sprint7": "node scripts/test-sprint7.js",
+    "start:nube": "node scripts/preparar-nube.js && node src/server.js",
+    "test:sprint8": "node scripts/test-sprint8.js",
+    "test:sprint9": "node scripts/test-sprint9.js",
+    "test:decisiones": "node scripts/test-decisiones.js"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "express-rate-limit": "^7.2.0",
+    "helmet": "^7.1.0",
+    "jsonwebtoken": "^9.0.2",
+    "nodemailer": "^10.1.0",
+    "pg": "^8.11.3",
+    "stripe": "^23.0.0"
+  },
+  "devDependencies": {
+    "jsdom": "^30.1.2",
+    "mailparser": "^3.9.38",
+    "smtp-server": "^3.19.21"
+  }
+}

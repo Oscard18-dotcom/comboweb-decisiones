@@ -1,0 +1,36 @@
+# Publicación en Render con un solo clic (Blueprint). Crea el sitio web. La base de datos PostgreSQL es externa (Neon, gratuita y sin caducidad) para que dure todo el semestre.
+# Modo DEMOSTRACIÓN: pago y correo simulados (no se cobra nada). Cuando tengas Stripe y correo real,
+# cambia las variables (ver README) y quita MODO_DEMO.
+services:
+  - type: web
+    name: comboweb-decisiones
+    runtime: node
+    plan: free
+    buildCommand: npm install --omit=dev
+    startCommand: npm run start:nube
+    healthCheckPath: /api/salud
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: NODE_ENV
+        value: production
+      - key: MODO_DEMO
+        value: "true"
+      - key: PAYMENT_PROVIDER
+        value: simulado
+      - key: MAIL_PROVIDER
+        value: consola
+      - key: TRUST_PROXY
+        value: "1"
+      - key: DATABASE_SSL
+        value: "true"
+      - key: JWT_SECRET
+        generateValue: true
+      # Cadena de conexión de la base de datos externa (Neon, plan gratuito sin caducidad).
+      # Usa la conexión DIRECTA (sin "-pooler" en el host). Se pega en Render al crear el Blueprint.
+      - key: DATABASE_URL
+        sync: false
+      - key: ADMIN_EMAIL
+        sync: false
+      - key: ADMIN_PASSWORD
+        sync: false

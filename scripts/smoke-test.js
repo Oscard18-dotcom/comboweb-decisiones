@@ -1,0 +1,53 @@
+// Pruebas de humo de la API. Úsalas SOLO en tu base de datos de desarrollo (crea usuarios y productos de prueba).
+// Requiere el servidor corriendo y SEED_PASSWORD en el entorno:  SEED_PASSWORD=tu_clave BASE_URL=http://localhost:3000 npm run test:smoke
+const B=process.env.BASE_URL||'http://localhost:3000';let pass=0,fail=0;
+const R=Date.now();
+async function call(m,p,body,tok){const r=await fetch(B+p,{method:m,headers:{'Content-Type':'application/json',...(tok?{Authorization:'Bearer '+tok}:{})},body:body===undefined?undefined:(typeof body==='string'?body:JSON.stringify(body))});let j={};try{j=await r.json()}catch{}return{s:r.status,j}}
+function t(name,cond,extra=''){if(cond){pass++;console.log('PASS',name)}else{fail++;console.log('FAIL',name,extra)}}
+(async()=>{
+ let r=await call('GET','/api/catalogo');
+ t('catálogo público: 6 productos y 3 presentaciones',r.s===200&&r.j.productos.length===6&&r.j.presentaciones.length===3);
+ r=await call('POST','/api/auth/register',{nombre:'Ana López',correo:`Ana${R}@Correo.com`,password:'secreta123'});
+ t('registro de cliente',r.s===201&&r.j.usuario.rol==='cliente'&&r.j.token);const tc=r.j.token;
+ r=await call('POST','/api/auth/register',{nombre:'Ana López',correo:`ana${R}@correo.com`,password:'secreta123'});
+ t('correo duplicado (sin importar mayúsculas) → 409',r.s===409);
+ r=await call('POST','/api/auth/register',{nombre:'X',correo:'malcorreo',password:'123'});
+ t('datos inválidos → 400',r.s===400);
+ r=await call('POST','/api/auth/register',{nombre:'Intruso',correo:`intruso${R}@correo.com`,password:'secreta123',rol:'admin'});
+ t('registro público ignora rol=admin (queda cliente)',r.s===201&&r.j.usuario.rol==='cliente');
+ r=await call('POST','/api/auth/login',{correo:'admin@encombo.test',password:process.env.SEED_PASSWORD});
+ t('login admin',r.s===200&&r.j.usuario.rol==='admin');const ta=r.j.token;
+ r=await call('POST','/api/auth/login',{correo:'admin@encombo.test',password:'incorrecta'});
+ const m1=r.j.error;t('contraseña incorrecta → 401',r.s===401);
+ r=await call('POST','/api/auth/login',{correo:'noexiste@encombo.test',password:'incorrecta'});
+ t('usuario inexistente → mismo mensaje genérico',r.s===401&&r.j.error===m1);
+ r=await call('POST','/api/auth/login',{correo:"' OR 1=1 --",password:"' OR '1'='1"});
+ t('inyección SQL en login → 401',r.s===401);
+ r=await call('GET','/api/auth/me',undefined,tc);t('/me con token',r.s===200&&r.j.usuario.correo===`ana${R}@correo.com`);
+ r=await call('GET','/api/auth/me');t('/me sin token → 401',r.s===401);
+ r=await call('GET','/api/auth/me',undefined,'token.falso.aqui');t('token falso → 401',r.s===401);
+ r=await call('GET','/api/admin/usuarios',undefined,tc);t('cliente en ruta admin → 403',r.s===403);
+ r=await call('GET','/api/admin/usuarios');t('sin sesión en ruta admin → 401',r.s===401);
+ r=await call('GET','/api/admin/usuarios',undefined,ta);t('admin lista usuarios',r.s===200&&r.j.usuarios.length>=5&&!JSON.stringify(r.j).includes('password'));
+ r=await call('POST','/api/admin/productos',{nombre:'Muffin'+R,descripcion:'De arándano',precio:28},ta);
+ t('admin crea producto (nace inactivo)',r.s===201&&r.j.producto.activo===false);const pid=r.j.producto.id;
+ r=await call('PATCH',`/api/admin/productos/${pid}/activo`,{activo:true},ta);t('activar sin receta → 409',r.s===409);
+ r=await call('POST','/api/admin/productos',{nombre:'Malo',precio:-5},ta);t('precio negativo → 400',r.s===400);
+ r=await call('POST','/api/admin/productos',{nombre:'Cupcake',precio:20},ta);t('nombre duplicado → 409',r.s===409);
+ r=await call('PUT',`/api/admin/productos/${pid}`,{nombre:'Muffin'+R,descripcion:'De arándano',precio:30},ta);t('editar precio',r.s===200&&Number(r.j.producto.precio)===30);
+ r=await call('GET','/api/catalogo');t('producto inactivo no aparece en el catálogo',!r.j.productos.some(p=>p.nombre==='Muffin'+R));
+ r=await call('PUT','/api/admin/presentaciones/1',{precio:32},ta);t('editar precio de presentación',r.s===200&&Number(r.j.presentacion.precio)===32);
+ r=await call('POST','/api/admin/usuarios',{nombre:'Cocinero Nuevo',correo:`nuevo${R}@encombo.test`,password:'cocina12345',rol:'cocina'},ta);
+ t('admin da de alta personal',r.s===201&&r.j.usuario.rol==='cocina');const uid=r.j.usuario.id;
+ r=await call('POST','/api/admin/usuarios',{nombre:'X Y',correo:'x@encombo.test',password:'cocina12345',rol:'superadmin'},ta);t('rol inválido → 400',r.s===400);
+ r=await call('POST','/api/auth/login',{correo:`nuevo${R}@encombo.test`,password:'cocina12345'});t('el nuevo usuario inicia sesión',r.s===200);const tn=r.j.token;
+ r=await call('PATCH',`/api/admin/usuarios/${uid}`,{activo:false},ta);t('admin da de baja al usuario',r.s===200&&r.j.usuario.activo===false);
+ r=await call('GET','/api/auth/me',undefined,tn);t('token del usuario dado de baja deja de funcionar',r.s===401);
+ r=await call('POST','/api/auth/login',{correo:`nuevo${R}@encombo.test`,password:'cocina12345'});t('usuario dado de baja no puede iniciar sesión',r.s===401);
+ r=await call('GET','/api/admin/usuarios',undefined,ta);const adminId=r.j.usuarios.find(u=>u.correo==='admin@encombo.test').id;
+ r=await call('PATCH',`/api/admin/usuarios/${adminId}`,{activo:false},ta);t('no se puede dar de baja al único admin → 409',r.s===409);
+ r=await call('PATCH',`/api/admin/usuarios/${adminId}`,{rol:'cliente'},ta);t('no se puede quitar el rol al único admin → 409',r.s===409);
+ r=await call('POST','/api/auth/login','{json roto');t('JSON inválido → 400',r.s===400);
+ const h=await fetch(B+'/');t('página de inicio servida',h.status===200&&(await h.text()).includes('ComboWeb'));
+ const hd=h.headers;t('cabeceras de seguridad (helmet)',hd.get('x-content-type-options')==='nosniff'&&!hd.get('x-powered-by'));
+ console.log(`\n${pass} correctas, ${fail} fallidas`);process.exit(fail?1:0)})();

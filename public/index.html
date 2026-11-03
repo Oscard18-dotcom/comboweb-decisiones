@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>EN COMBO · ComboWeb Decisiones</title>
+  <link rel="icon" type="image/png" href="favicon.png">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+  <meta name="theme-color" content="#3F210E">
+  <meta name="color-scheme" content="light">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header>
+    <a class="marca" href="/"><img src="logo-96.png" alt="" width="44" height="44">EN COMBO</a>
+    <nav id="nav" hidden>
+      <button type="button" data-tab="armar">Armar combo</button>
+      <button type="button" data-tab="mis">Mis pedidos</button>
+      <button type="button" data-tab="avis">Notificaciones <span id="badge" class="badge" role="status" hidden></span></button>
+    </nav>
+    <span id="who"></span>
+    <button id="btn-cuenta" type="button" hidden>Mi cuenta</button>
+    <button id="out" type="button" hidden>Cerrar sesión</button>
+  </header>
+  <main>
+    <section id="cuenta" class="card narrow" hidden></section>
+    <section id="msg" hidden></section>
+    <section id="auth" class="card narrow">
+      <img class="logo-grande" src="logo.png" alt="Logotipo de EN COMBO: food, coffee, moments">
+      <div class="tabs">
+        <button id="tab-login" class="on" type="button">Iniciar sesión</button>
+        <button id="tab-reg" type="button">Crear cuenta</button>
+      </div>
+      <form id="f-login" data-path="/auth/login">
+        <label>Correo<input name="correo" type="email" autocomplete="email" required></label>
+        <label>Contraseña<input name="password" type="password" autocomplete="current-password" required></label>
+        <button class="btn" type="submit">Entrar</button>
+      </form>
+      <form id="f-reg" data-path="/auth/register" hidden>
+        <label>Nombre completo<input name="nombre" autocomplete="name" required minlength="2" maxlength="80"></label>
+        <label>Correo<input name="correo" type="email" autocomplete="email" required></label>
+        <label>Contraseña (mínimo 8 caracteres)<input name="password" type="password" autocomplete="new-password" required minlength="8" maxlength="72"></label>
+        <button class="btn" type="submit">Crear cuenta</button>
+      </form>
+      <p id="err" class="err" role="alert"></p>
+    </section>
+    <section id="staff" hidden></section>
+    <section id="armar" hidden></section>
+    <section id="mis" hidden></section>
+    <section id="avisos" hidden></section>
+    <section id="catalogo">
+      <h2>Catálogo</h2>
+      <div id="cat" class="grid"></div>
+      <h2>Presentaciones</h2>
+      <div id="pres" class="grid"></div>
+    </section>
+  </main>
+  <script src="personal.js"></script>
+  <script src="cocina.js"></script>
+  <script src="reportes.js"></script>
+  <script src="usuarios.js"></script>
+  <script src="compras.js"></script>
+  <script src="decisiones.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

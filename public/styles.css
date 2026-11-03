@@ -1,0 +1,146 @@
+:root{--bg:#917A79;--card:#FFFDF9;--tx:#3F210E;--mu:#6A5A4C;--ln:#E3D5C0;--pri:#3F210E;--onpri:#F9F1E6;--sel:#EEE4D0;--err:#B3261E;--errbg:#FBE9E7;--ok:#6A6141;--bar:#3F210E;--acc:#6A6141;--bar-tx:#F9F1E6;--bar-hi:#F9F1E6;--tx2:#1E0F06}
+*{box-sizing:border-box}
+html{color-scheme:light}
+body{margin:0;background:var(--bg);color:var(--tx);font:15px/1.5 system-ui,Arial,sans-serif}
+header{background:var(--bar);color:var(--bar-tx);display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:8px 16px}
+header b{margin-right:auto}
+.marca{margin-right:auto;display:flex;align-items:center;gap:10px;color:var(--bar-tx);text-decoration:none;font-family:Georgia,'Times New Roman',serif;font-weight:700;letter-spacing:.04em;font-size:18px}
+.marca img{width:44px;height:44px;border-radius:50%;display:block;box-shadow:0 0 0 2px var(--bar-hi)}
+.logo-grande{display:block;width:150px;height:150px;border-radius:50%;margin:0 auto 12px;box-shadow:0 2px 10px rgba(63,33,14,.25)}
+header button{background:none;border:0;border-bottom:2px solid transparent;color:var(--bar-tx);padding:8px 10px;cursor:pointer;font:inherit}
+header button.on{color:var(--bar-hi);border-bottom-color:var(--bar-hi)}
+header #btn-cuenta,header #out{border:1px solid var(--bar-hi);color:var(--bar-hi);border-radius:16px;padding:4px 12px}
+main{max-width:980px;margin:0 auto;padding:16px}
+h2{font-size:17px;margin:16px 0 8px;color:var(--tx2)}h2:first-child{margin-top:0}h3{font-size:15px;margin:0 0 8px}
+small,.mu{color:var(--mu)}
+.card{background:var(--card);border:1px solid var(--ln);border-radius:10px;padding:16px;margin-bottom:14px}
+.narrow{max-width:420px}
+.tabs{display:flex;gap:6px;margin-bottom:12px}
+.tabs button{flex:1;border:1px solid var(--ln);background:transparent;color:var(--tx);border-radius:20px;padding:8px;cursor:pointer;font:inherit}
+.tabs .on{background:var(--pri);color:var(--onpri);border-color:var(--pri)}
+label{display:flex;flex-direction:column;font-size:13px;color:var(--mu);gap:3px;margin-bottom:10px}
+input,select,textarea{font:inherit;color:var(--tx);background:var(--card);border:1px solid var(--ln);border-radius:6px;padding:9px;max-width:100%}
+textarea{width:100%}
+:focus-visible{outline:2px solid var(--pri);outline-offset:2px}
+.btn{background:var(--pri);color:var(--onpri);border:0;border-radius:22px;padding:11px 18px;font:inherit;font-weight:600;width:100%;cursor:pointer;min-height:44px}
+.btn.s{background:transparent;color:var(--pri);border:1.5px solid var(--pri)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.row{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}.row .btn{width:auto}
+.err{color:var(--err);margin:8px 0 0}.err:empty{display:none}
+.errbox{background:var(--errbox,var(--errbg));color:var(--err);border:1px solid var(--err);border-radius:6px;padding:8px 10px;margin-top:10px}
+.errbox:empty{display:none}
+.ok{background:var(--card);border:1px solid var(--ok);border-radius:10px;padding:16px;margin-bottom:14px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px}
+.item{background:var(--card);border:1px solid var(--ln);border-radius:8px;padding:10px;display:flex;flex-direction:column;gap:2px}
+.item.on,.opt.on{background:var(--sel);border-color:var(--pri)}
+.item small{color:var(--mu)}.item .p{font-weight:600;color:var(--pri)}
+.qty{display:flex;align-items:center;gap:10px;margin-top:6px}
+.qty button{width:38px;height:38px;border-radius:50%;border:1px solid var(--pri);background:transparent;color:var(--pri);font-size:18px;cursor:pointer}
+.opt{border:1px solid var(--ln);border-radius:8px;padding:10px 12px;cursor:pointer;display:flex;flex-direction:row;gap:8px;align-items:center;color:var(--tx);font-size:15px;margin:0}
+.two{display:grid;grid-template-columns:1fr 320px;gap:14px;align-items:start}
+@media(max-width:760px){.two{grid-template-columns:1fr}}
+.seg{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px}
+.seg button{border:1px solid var(--ln);background:var(--card);color:var(--tx);border-radius:20px;padding:8px 18px;cursor:pointer;font:inherit}
+.seg button.on{background:var(--pri);color:var(--onpri);border-color:var(--pri)}
+.ln{display:flex;justify-content:space-between;gap:8px;padding:5px 0;border-bottom:1px solid var(--ln)}
+.tot{font-weight:600;font-size:17px;border:0}
+.chip{color:#fff;border-radius:12px;padding:2px 10px;font-size:12px;font-weight:600;display:inline-block}
+table{border-collapse:collapse;width:100%;font-size:14px}
+th{background:var(--bar);color:var(--bar-tx);text-align:left;padding:8px;font-weight:500;white-space:nowrap}
+td{padding:6px 8px;border-bottom:1px solid var(--ln);vertical-align:middle}
+.tw{overflow-x:auto;padding:8px}
+.td-num,.bajo{font-weight:600}.bajo{color:var(--err)}
+.acc{white-space:nowrap}
+.mini{background:transparent;border:1px solid var(--pri);color:var(--pri);border-radius:14px;padding:3px 10px;font:inherit;font-size:12px;cursor:pointer;margin:2px}
+.alerta{background:var(--errbg);color:var(--err);border:1px solid var(--err);border-radius:8px;padding:10px 12px;margin-bottom:10px}
+.filtros{align-items:center;margin:0 0 10px}
+.chk{flex-direction:row;align-items:center;gap:6px;margin:0;color:var(--tx);font-size:14px}
+.okmsg{color:var(--ok);margin:6px 0}.okmsg:empty{display:none}
+.prod{display:flex;flex-wrap:wrap;gap:6px;align-items:center;width:100%;text-align:left;background:var(--card);color:var(--tx);border:1px solid var(--ln);border-radius:8px;padding:8px 10px;margin-top:8px;cursor:pointer;font:inherit}
+.prod.on{background:var(--sel);border-color:var(--pri)}
+.two.inv{grid-template-columns:300px 1fr}
+@media(max-width:760px){.two.inv{grid-template-columns:1fr}}
+.ing{display:grid;grid-template-columns:1fr 110px 36px auto;gap:6px;align-items:center;margin-bottom:6px}
+.u{font-size:13px}
+.tot-box{background:var(--sel);border-radius:8px;padding:8px 12px;margin:10px 0}
+/* Tablero de cocina */
+.kb{display:grid;grid-template-columns:repeat(4,minmax(210px,1fr));gap:10px;overflow-x:auto;margin:10px 0}
+.col{background:rgba(106,97,65,.14);border-radius:10px;padding:8px;min-width:210px}
+.oc{background:var(--card);border:1px solid var(--ln);border-radius:8px;padding:10px;margin-top:8px;display:flex;flex-direction:column;gap:4px;cursor:pointer;font-size:14px}
+.oc.on{border-color:var(--pri);box-shadow:0 0 0 2px var(--pri)}
+.oc.atr{border-left:4px solid var(--err)}
+.oc .btn{margin-top:6px;min-height:42px;padding:8px}
+.ded{background:var(--sel);border-radius:6px;padding:4px 8px;font-weight:600}
+.ficha dl{display:grid;grid-template-columns:130px 1fr;gap:4px 10px;margin:8px 0}.ficha dt{color:var(--mu)}.ficha dd{margin:0}
+.ficha .ded{font-size:17px;display:block;margin:6px 0}
+@media(max-width:700px){.kb{grid-template-columns:1fr;overflow-x:visible}.col{min-width:0}}
+/* Seguimiento del pedido */
+.tl{display:flex;gap:6px;margin:10px 0}
+.tl div{flex:1;text-align:center;font-size:12px;display:flex;flex-direction:column;align-items:center;gap:2px}
+.tl i{display:block;width:22px;height:22px;border-radius:50%;background:var(--ln);color:#fff;font-style:normal;line-height:22px}
+.tl small{font-size:10px}
+/* Dashboard */
+.kp{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:12px}
+.kp b{font-size:22px;display:block}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px;margin-bottom:12px}
+/* Tablas contables (estilo Excel contable mexicano): cifras a la derecha, $ alineado a la izquierda de la celda, totales con raya */
+.contable{border-collapse:collapse;width:100%;font-size:14px;font-variant-numeric:tabular-nums}
+.contable th{background:var(--bar);color:var(--bar-tx);font-weight:600;padding:7px 10px;text-align:left}
+.contable th.n,.contable td.n{text-align:right}
+.contable td{padding:5px 10px;border-bottom:1px solid var(--ln)}
+.contable td.mon{white-space:nowrap}.contable td.mon span:first-child{float:left}.contable td.mon span:last-child{float:right}
+.contable tr.total td{font-weight:700;border-top:2px solid var(--tx);border-bottom:3px double var(--tx);background:transparent}
+.contable .neg{color:var(--err)}
+.reporte-tit{text-align:center;margin:6px 0 10px}
+@media print{header,#armar,#mis,#auth,#catalogo,.noprint{display:none!important}body{background:#fff;color:#000}.ok{border:1px solid #000}.contable th{background:#eee;color:#000}.card{border:0;padding:0}}
+
+/* Sprint 7: pedidos a proveedor */
+.lista-insumos{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:4px 12px;border:1px solid var(--ln);border-radius:8px;padding:8px 10px;max-height:190px;overflow:auto;margin-bottom:10px}
+.lista-insumos .chk{margin:0}
+.lp{display:grid;grid-template-columns:minmax(0,1fr) 120px 40px 36px;gap:6px;align-items:center;margin-bottom:6px}
+.lp select,.lp input{min-width:0;width:100%}
+@media(max-width:560px){.lp{grid-template-columns:minmax(0,1fr) 84px 30px 36px}}
+.ficha-dl{display:grid;grid-template-columns:140px 1fr;gap:4px 10px;margin:8px 0}.ficha-dl dt{color:var(--mu)}.ficha-dl dd{margin:0;overflow-wrap:anywhere}
+.aviso{background:var(--sel);border:1px solid var(--ln);border-radius:8px;padding:8px 12px;margin:8px 0}
+.opt-radio{display:flex;flex-direction:row;gap:8px;align-items:flex-start;color:var(--tx);font-size:14px;margin:4px 0}
+
+/* Texto que queda directamente sobre el fondo (#917A79): más oscuro para que se lea bien */
+.filtros,.filtros label,.filtros .chk{color:var(--tx2)}
+main>p,main>small,main>.mu{color:var(--tx2)}
+/* Sprint 9 (legibilidad): todo texto de apoyo que queda sobre el fondo #917A79 va en el marrón más oscuro; dentro de tarjetas (fondo claro) conserva su tono suave */
+main .mu,main small,main h3,main dt{color:var(--tx2)}
+.card .mu,.card small,.ok .mu,.ok small,.item small,.oc small,.aviso .mu,.aviso small,.tot-box small,.tw small,.tw .mu,.ficha dt,.ficha-dl dt,.opt small{color:var(--mu)}
+.card h3,.ok h3{color:var(--tx)}
+.mini,.btn.s{color:var(--tx2)}.btn.s{border-color:var(--tx2)}.mini{border-color:var(--tx2)}
+.col .mu,.kb>.mu,.col small{color:var(--tx2)}.col .oc small,.col .oc .mu{color:var(--mu)}
+.errbox,.alerta{color:#8C1D18}
+
+/* Sprint 9: dirección de entrega */
+.dir-grid{display:grid;grid-template-columns:1fr 1fr;gap:0 12px;align-items:start}
+.dir-grid .wide{grid-column:1 / -1}
+.dir-grid label[hidden]{display:none}
+.dir-info{align-self:center;min-height:20px}.dir-info small{color:var(--mu)}
+.dir-grid input,.dir-grid select{width:100%}
+@media(max-width:560px){.dir-grid{grid-template-columns:1fr}}
+.oc .dir{font-size:13px;color:var(--mu)}
+/* Mensajes de error y de éxito: llevan su propio fondo claro, así se leen sobre cualquier superficie */
+.err:not(:empty){background:var(--errbg);border:1px solid var(--err);border-radius:6px;padding:6px 10px;color:#8C1D18}
+.okmsg:not(:empty){background:var(--card);border:1px solid var(--ok);border-radius:6px;padding:6px 10px;color:var(--ok)}
+
+/* Notificaciones del cliente */
+.badge{display:inline-block;min-width:18px;padding:0 6px;margin-left:4px;border-radius:10px;background:var(--bar-hi);color:var(--bar);font-size:12px;font-weight:700;line-height:18px;text-align:center}
+.badge[hidden]{display:none}
+.aviso-n.nueva{border-left:5px solid var(--pri);background:var(--sel)}
+
+/* Toma de decisiones */
+.dec-tabla{width:100%}
+.dec-tabla input[type=number]{width:120px;max-width:100%}
+.dec-tabla td.n{text-align:right;font-variant-numeric:tabular-nums}
+.dec-tabla td.gana{background:var(--sel);font-weight:700}
+.dec-tabla .fila-prob td{border-top:2px solid var(--ln)}
+.voto{display:grid;grid-template-columns:minmax(120px,220px) 1fr 70px;gap:10px;align-items:center;margin:6px 0}
+.voto .barra{display:block;height:12px;background:var(--ln);border-radius:6px;overflow:hidden}
+.voto .barra i{display:block;height:100%;background:var(--pri)}
+details summary{cursor:pointer;font-weight:600;margin:8px 0}
+.card details ul{margin:6px 0 0 18px;padding:0}
+@media (max-width:600px){.voto{grid-template-columns:1fr auto}.voto .barra{grid-column:1 / -1;order:3}}

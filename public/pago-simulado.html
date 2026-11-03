@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Pago simulado · EN COMBO</title>
+  <link rel="icon" type="image/png" href="favicon.png">
+  <meta name="theme-color" content="#3F210E">
+  <meta name="color-scheme" content="light">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header><a class="marca" href="/"><img src="logo-96.png" alt="" width="44" height="44">EN COMBO</a></header>
+  <main>
+    <section class="card narrow">
+      <h2>Pasarela de pago SIMULADA</h2>
+      <p class="mu">Solo para desarrollo: aquí no se cobra nada. En producción esta pantalla es la página de pago de Stripe.</p>
+      <p id="total" class="tot"></p>
+      <div class="row">
+        <button id="aprobar" class="btn" type="button" disabled>Pagar (simulado)</button>
+        <button id="rechazar" class="btn s" type="button" disabled>Rechazar pago</button>
+      </div>
+      <p id="err" class="err" role="alert"></p>
+    </section>
+  </main>
+  <script src="pago-simulado.js"></script>
+</body>
+</html>
