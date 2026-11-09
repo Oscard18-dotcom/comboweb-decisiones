@@ -13,7 +13,7 @@ export class Warehouse implements OnInit {
   private api = inject(Api);
   readonly fh = fechaHora;
   readonly ir = irA;
-  origen = signal<'todos' | 'pedido' | 'demo'>('todos');
+  origen = signal<'demo'>('demo');
   r = signal<ResumenWarehouse | null>(null);
   error = signal('');
   exito = signal('');
@@ -27,26 +27,22 @@ export class Warehouse implements OnInit {
   productos = computed(() => (this.r()?.productos ?? []).map((p) => ({ etiqueta: p.nombre, valor: p.ingreso })));
   zonas = computed(() => (this.r()?.zonas ?? []).map((z) => ({ etiqueta: z.municipio, valor: z.ingreso })));
 
-  ngOnInit() { this.cargar(); }
+  async ngOnInit() { await this.cargar(); if (!this.error() && this.r() && this.r()!.filas.demo === 0) await this.preparar(); }
+
+  private async preparar() {
+    try { await this.api.cargarWarehouse(true); await this.cargar(); } catch (e) { this.error.set((e as Error).message); }
+  }
 
   async cargar() {
     this.cargando.set(true);
     try { this.r.set(await this.api.resumen(this.origen())); this.error.set(''); } catch (e) { this.error.set((e as Error).message); }
     this.cargando.set(false);
   }
-  async filtrar(o: string) { this.origen.set(o as 'todos' | 'pedido' | 'demo'); await this.cargar(); }
 
   private async accion(fn: () => Promise<string>) {
     this.ocupado.set(true); this.error.set(''); this.exito.set('');
     try { const msg = await fn(); await this.cargar(); this.exito.set(msg); } catch (e) { this.error.set((e as Error).message); }
     this.ocupado.set(false);
   }
-  etl(demo: boolean) {
-    return this.accion(async () => {
-      const x = await this.api.cargarWarehouse(demo);
-      return demo ? `Carga terminada: ${x.pedidos} ventas de pedidos reales y ${x.demo} ventas de demostración (12 meses).` : `Carga terminada: ${x.pedidos} ventas de pedidos reales copiadas al warehouse.`;
-    });
-  }
-  quitarDemo() { return this.accion(async () => `Se quitaron ${(await this.api.quitarDemo()).borradas} ventas de demostración.`); }
   exportar() { return this.accion(async () => { const x = await this.api.exportarWarehouse(); descargar(x.archivos); return `Se descargaron ${x.archivos.length} archivos CSV (4 dimensiones y la tabla de hechos) para Power BI o Excel.`; }); }
 }

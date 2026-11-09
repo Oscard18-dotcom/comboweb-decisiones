@@ -3,33 +3,14 @@
   <p>Es una base de datos aparte, pensada solo para <b>analizar</b>. Se llena con un proceso <b>ETL</b>: se <b>extraen</b> los pedidos del sistema, se <b>transforman</b> (se ordenan por fecha, producto, presentación y zona) y se <b>cargan</b> en un esquema de estrella. Así se pueden hacer preguntas de negocio sin tocar la base que usan los clientes.</p>
 </div>
 
-<div class="card">
-  <p class="rotulo">Carga de datos (ETL)</p>
-  @if (r(); as x) {
-    <p class="mu">En el warehouse hay <b>{{ x.filas.pedido | number }}</b> ventas de pedidos reales y <b>{{ x.filas.demo | number }}</b> de demostración.
-      @if (x.ultima_carga) { Última carga: {{ fh(x.ultima_carga.creado_en) }} } @else { Aún no se ha cargado nada. }</p>
-  }
-  <div class="row filtros">
-    <button class="btn" type="button" data-acc="etl-demo" style="width:auto" [disabled]="ocupado()" (click)="etl(true)">Cargar con historial de demostración (12 meses)</button>
-    <button class="mini" type="button" data-acc="etl" [disabled]="ocupado()" (click)="etl(false)">Cargar solo pedidos reales</button>
-    <button class="mini" type="button" data-acc="quitar-demo" [disabled]="ocupado() || !r()?.filas?.demo" (click)="quitarDemo()">Quitar demostración</button>
-    <button class="mini" type="button" data-acc="exportar-dw" [disabled]="ocupado() || vacio()" (click)="exportar()">Exportar para Power BI</button>
-  </div>
-  <p class="mu">El historial de demostración es información inventada (con más ventas en diciembre, febrero y mayo, y los fines de semana) para poder ver el warehouse funcionando. Cada vez que se carga, se reemplaza por completo, no se duplica.</p>
-  @if (error()) { <p class="err" role="alert">{{ error() }}</p> }
-  @if (exito()) { <p class="okmsg" role="status">{{ exito() }}</p> }
-</div>
-
+@if (error()) { <p class="err" role="alert">{{ error() }}</p> }
+@if (exito()) { <p class="okmsg" role="status">{{ exito() }}</p> }
 @if (cargando() && !r()) { <p class="mu" role="status">Cargando…</p> }
 @if (r(); as x) {
   @if (vacio()) {
-    <p class="aviso" role="status">El warehouse está vacío. Pulsa “Cargar con historial de demostración” para llenarlo.</p>
+    <p class="mu" role="status">Preparando los datos de prueba…</p>
   } @else {
-    <div class="seg" role="group" aria-label="Qué datos mostrar">
-      <button type="button" data-origen="todos" [class.on]="origen() === 'todos'" (click)="filtrar('todos')">Todo</button>
-      <button type="button" data-origen="pedido" [class.on]="origen() === 'pedido'" (click)="filtrar('pedido')">Solo pedidos reales</button>
-      <button type="button" data-origen="demo" [class.on]="origen() === 'demo'" (click)="filtrar('demo')">Solo demostración</button>
-    </div>
+    <div class="row filtros"><button class="mini" type="button" data-acc="exportar-dw" [disabled]="ocupado()" (click)="exportar()">Exportar para Power BI</button></div>
 
     <div class="kpis" data-kpis="1">
       <div class="kpi"><span>Ingresos</span><b>${{ x.kpis.ingreso | number:'1.0-0' }}</b></div>
@@ -52,7 +33,7 @@
     </div>
     <div class="card">
       <p class="rotulo">Relación con las decisiones y los reportes</p>
-      <p class="mu">Los datos del warehouse sirven para estimar los números de la matriz de pagos: por ejemplo, la temporada con más ingreso diario ayuda a decidir qué combo lanzar, y los municipios que más compran ayudan a elegir la zona de entrega. Una vez que tengas una estimación, escríbela en “Analizar una decisión” y pulsa “Guardar como mis datos”. Las cifras de ventas reales también están en el Dashboard y en Reportes.</p>
+      <p class="mu">Los datos del warehouse sirven para estimar los números de la matriz de pagos: por ejemplo, la temporada con más ingreso diario ayuda a decidir qué combo lanzar, y los municipios que más compran ayudan a elegir la zona de entrega.</p>
       <p class="atajos"><button type="button" class="vinculo" data-ir="dash" (click)="ir('dash')">Abrir Dashboard</button><button type="button" class="vinculo" data-ir="rep" (click)="ir('rep')">Abrir Reportes</button></p>
     </div>
   }

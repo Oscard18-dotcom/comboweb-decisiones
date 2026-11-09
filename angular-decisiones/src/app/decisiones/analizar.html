@@ -8,15 +8,6 @@
     }
   </div>
 
-  <details class="card seccion planteamiento" open>
-    <summary><span class="rotulo">Planteamiento</span></summary>
-    <h2 class="pregunta">{{ c.pregunta }}</h2>
-    <p><span class="et">Origen de los pagos</span> {{ c.origen }}</p>
-    <p class="mu">Los pagos están en {{ c.unidad }}. Modifica cualquier cifra de la matriz y los resultados se recalculan. Con “Guardar como mis datos” se conservan para la próxima vez.</p>
-    @if (c.guardado) { <p class="okmsg">Se usan los datos guardados el {{ fh(c.actualizado_en!) }}.</p> }
-    @else { <p class="mu">Se usan los datos de ejemplo.</p> }
-  </details>
-
   @if (error()) { <p class="err" role="alert">{{ error() }}</p> }
   @if (exito()) { <p class="okmsg" role="status">{{ exito() }}</p> }
   @if (ev()?.advertencia; as av) { <p class="aviso" role="status">Nota: {{ av }}</p> }
@@ -55,9 +46,6 @@
       <b class="alfa">α = {{ alfa().toFixed(2) }}</b>
       <span class="botones">
         <button class="mini" type="button" (click)="restablecer()">Deshacer cambios</button>
-        <button class="mini" type="button" data-acc="guardar-datos" [disabled]="ocupado()" (click)="guardar()">Guardar como mis datos</button>
-        @if (c.guardado) { <button class="mini" type="button" data-acc="ejemplo" [disabled]="ocupado()" (click)="ejemplo()">Volver a los datos de ejemplo</button> }
-        <button class="mini" type="button" data-acc="exportar" [disabled]="ocupado()" (click)="exportar()">Exportar a Power BI / Excel</button>
       </span>
     </div>
   </details>

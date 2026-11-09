@@ -1,6 +1,6 @@
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { DecimalPipe } from '@angular/common';
-import { Api, descargar, fechaHora } from '../core/api';
+import { Api, fechaHora } from '../core/api';
 import { Caso, Criterio, Evaluacion, Matriz } from '../core/modelos';
 
 @Component({
@@ -75,20 +75,6 @@ export class Analizar implements OnInit {
       this.ev.set(evaluacion); this.error.set('');
       if (!this.tocada || !evaluacion.alternativas.includes(this.elegida())) this.elegida.set(evaluacion.consenso.ganadora ?? evaluacion.alternativas[0]);
     } catch (e) { if (mi !== this.secuencia) return; this.ev.set(null); this.error.set((e as Error).message); }
-  }
-
-  async guardar() { await this.accion(async () => { await this.api.guardarDatos(this.casoId(), this.matriz()); await this.recargar('Datos guardados. Así aparecerán cada vez que abras este tipo de decisión.'); }); }
-  async ejemplo() { await this.accion(async () => { await this.api.restaurarDatos(this.casoId()); await this.recargar('Se restauraron los datos de ejemplo.'); }); }
-  private async recargar(mensaje: string) {
-    const r = await this.api.casos(); this.casos.set(r.casos); this.restablecer(); this.exito.set(mensaje);
-  }
-  async exportar() {
-    await this.accion(async () => { const r = await this.api.exportar(this.matriz(), this.caso()!.titulo); descargar(r.archivos); });
-  }
-  private async accion(fn: () => Promise<void>) {
-    this.ocupado.set(true); this.error.set(''); this.exito.set('');
-    try { await fn(); } catch (e) { this.error.set((e as Error).message); }
-    this.ocupado.set(false);
   }
 
   async registrar() {
