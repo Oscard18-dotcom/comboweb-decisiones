@@ -102,7 +102,7 @@ export class Analizar implements OnInit {
   }
 
   elegir(v: string) { this.tocada = true; this.elegida.set(v); }
-  marcas(total: number) { return Array.from({ length: total }); }
+  pct(votos: number, total: number) { return total ? Math.round((votos / total) * 100) : 0; }
   votos(e: Evaluacion) { return Object.entries(e.consenso.votos); }
   ganaAlgo(i: number, g: number | null) { return g === i; }
   txtEmpate(e: Evaluacion, r: { empates: number[] }) { return r.empates.map((k) => e.alternativas[k]).join(', '); }

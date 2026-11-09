@@ -1,21 +1,6 @@
 <div class="card">
   <p class="rotulo">Qué es el almacén de datos</p>
   <p>Es una base de datos aparte, pensada solo para <b>analizar</b>. Se llena con un proceso <b>ETL</b>: se <b>extraen</b> los pedidos del sistema, se <b>transforman</b> (se ordenan por fecha, producto, presentación y zona) y se <b>cargan</b> en un esquema de estrella. Así se pueden hacer preguntas de negocio sin tocar la base que usan los clientes.</p>
-  <figure class="estrella">
-    <svg viewBox="0 0 560 250" role="img" aria-label="Esquema de estrella: la tabla de hechos fact_ventas conectada con las dimensiones fecha, producto, presentación y zona">
-      <g class="lin"><line x1="280" y1="125" x2="95" y2="45" /><line x1="280" y1="125" x2="465" y2="45" /><line x1="280" y1="125" x2="95" y2="205" /><line x1="280" y1="125" x2="465" y2="205" /></g>
-      <g class="dim"><rect x="20" y="15" width="150" height="60" rx="8" /><rect x="390" y="15" width="150" height="60" rx="8" /><rect x="20" y="175" width="150" height="60" rx="8" /><rect x="390" y="175" width="150" height="60" rx="8" /></g>
-      <rect class="hecho" x="195" y="90" width="170" height="70" rx="8" />
-      <g class="txt">
-        <text x="95" y="40" text-anchor="middle" class="t1">dim_fecha</text><text x="95" y="58" text-anchor="middle" class="t2">día, mes, temporada</text>
-        <text x="465" y="40" text-anchor="middle" class="t1">dim_producto</text><text x="465" y="58" text-anchor="middle" class="t2">nombre, precio, costo</text>
-        <text x="95" y="200" text-anchor="middle" class="t1">dim_presentacion</text><text x="95" y="218" text-anchor="middle" class="t2">tipo de caja</text>
-        <text x="465" y="200" text-anchor="middle" class="t1">dim_zona</text><text x="465" y="218" text-anchor="middle" class="t2">CP, colonia, municipio</text>
-        <text x="280" y="120" text-anchor="middle" class="t1 h">fact_ventas</text><text x="280" y="139" text-anchor="middle" class="t2 h">cantidad, ingreso, costo</text>
-      </g>
-    </svg>
-    <figcaption class="mu">Una venta (hecho) se describe con cuatro dimensiones. Tabla de hechos al centro, dimensiones alrededor.</figcaption>
-  </figure>
 </div>
 
 <div class="card">

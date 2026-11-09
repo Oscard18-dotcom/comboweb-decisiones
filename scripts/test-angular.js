@@ -18,6 +18,12 @@ const esperar = async (fn, ms = 8000) => { const s = Date.now(); while (Date.now
     t('la pestaña muestra la aplicación Angular dentro de un marco', await esperar(async () => (await fr.locator('app-root').count()) === 1));
     t('Angular: 4 tipos de decisión y 6 criterios calculados al abrir', await esperar(async () => (await fr.locator('[data-caso]').count()) === 4 && (await fr.locator('tr[data-criterio]').count()) === 6));
     t('contexto: la pantalla muestra cifras del Dashboard y enlaces a Dashboard y Reportes', !!(await esperar(async () => (await fr.locator('[data-contexto] > div').count()) >= 4 && (await fr.locator('[data-ir=dash]').count()) === 1 && (await fr.locator('[data-ir=rep]').count()) === 1)));
+    t('Analizar: 5 secciones plegables, todas abiertas al inicio', await fr.locator('details.seccion').count() === 5 && await fr.locator('details.seccion[open]').count() === 5);
+    const sm = fr.locator('details.seccion:has-text("Matriz de pagos") > summary').first();
+    await sm.click();
+    t('al pulsar el título una sección se contrae y se vuelve a extender', !!(await esperar(async () => (await fr.locator('details.seccion:has(.dec-tabla input) ').first().getAttribute('open')) === null)) && (await sm.click(), !!(await esperar(async () => (await fr.locator('details.seccion[open]').count()) === 5))));
+    const anchos = await fr.locator('.voto .barra-voto').evaluateAll((l) => l.map((x) => Math.round(parseFloat(x.style.width))));
+    t('consenso: el largo de cada barra es proporcional a los criterios que ganan (0, 67, 17, 17 %)', anchos.join() === '0,67,17,17', anchos.join());
     const gana = async (k) => (await fr.locator(`tr[data-criterio=${k}] td.gana`).first().textContent() || '').trim();
     t('combo de temporada: Maximin elige Regreso a clases (8,200)', /8,200/.test(await gana('maximin')), await gana('maximin'));
     t('Savage y VME coinciden con el ejemplo (Savage: San Valentín; VME: Navideño)', /6,700/.test(await gana('savage')) && /13,000/.test(await gana('vme')));
@@ -47,7 +53,7 @@ const esperar = async (fn, ms = 8000) => { const s = Date.now(); while (Date.now
     await fr.locator('[data-s=hist]').click();
     t('Decisiones registradas: aparece la nueva', !!(await esperar(async () => /Registrada desde Angular/.test(await fr.locator('app-historial').textContent()) && /Admin/i.test(await fr.locator('app-historial').textContent()))));
     await fr.locator('[data-s=dw]').click();
-    t('Data warehouse: explica el esquema de estrella (figura accesible)', !!(await esperar(async () => (await fr.locator('svg[role=img]').count()) === 1)));
+    t('Data warehouse: explica el esquema de estrella y ya no muestra el diagrama', !!(await esperar(async () => /esquema de estrella/.test(await fr.locator('app-warehouse').textContent()) && (await fr.locator('svg').count()) === 0)));
     await fr.locator('[data-acc=etl-demo]').click();
     t('cargar historial de demostración llena el warehouse (KPIs y gráficas)', !!(await esperar(async () => (await fr.locator('[data-kpis] .kpi').count()) === 4 && (await fr.locator('.cols .col').count()) >= 12 && /Carga terminada/.test(await fr.locator('.okmsg').first().textContent()), 15000)));
     const ing = async () => Number((await fr.locator('.kpi b').first().textContent()).replace(/[^0-9]/g, ''));

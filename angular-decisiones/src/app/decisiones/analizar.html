@@ -8,21 +8,21 @@
     }
   </div>
 
-  <section class="card planteamiento">
-    <p class="rotulo">Planteamiento</p>
+  <details class="card seccion planteamiento" open>
+    <summary><span class="rotulo">Planteamiento</span></summary>
     <h2 class="pregunta">{{ c.pregunta }}</h2>
     <p><span class="et">Origen de los pagos</span> {{ c.origen }}</p>
     <p class="mu">Los pagos están en {{ c.unidad }}. Modifica cualquier cifra de la matriz y los resultados se recalculan. Con “Guardar como mis datos” se conservan para la próxima vez.</p>
     @if (c.guardado) { <p class="okmsg">Se usan los datos guardados el {{ fh(c.actualizado_en!) }}.</p> }
     @else { <p class="mu">Se usan los datos de ejemplo.</p> }
-  </section>
+  </details>
 
   @if (error()) { <p class="err" role="alert">{{ error() }}</p> }
   @if (exito()) { <p class="okmsg" role="status">{{ exito() }}</p> }
   @if (ev()?.advertencia; as av) { <p class="aviso" role="status">Nota: {{ av }}</p> }
 
-  <section class="card tw">
-    <p class="rotulo">Matriz de pagos</p>
+  <details class="card seccion tw" open>
+    <summary><span class="rotulo">Matriz de pagos</span></summary>
     <table class="dec-tabla">
       <thead>
         <tr>
@@ -60,11 +60,11 @@
         <button class="mini" type="button" data-acc="exportar" [disabled]="ocupado()" (click)="exportar()">Exportar a Power BI / Excel</button>
       </span>
     </div>
-  </section>
+  </details>
 
   @if (ev(); as e) {
-    <section class="card tw">
-      <p class="rotulo">Resultado de cada criterio</p>
+    <details class="card seccion tw" open>
+      <summary><span class="rotulo">Resultado de cada criterio</span></summary>
       <table class="dec-tabla" data-res="1">
         <thead>
           <tr><th>Criterio</th>@for (a of e.alternativas; track a) { <th class="n">{{ a }}</th> }<th>Recomienda</th></tr>
@@ -107,22 +107,22 @@
         <summary>Cómo se lee cada criterio</summary>
         <ul>@for (k of criterios(); track k.clave) { <li><b>{{ k.nombre }}: </b>{{ k.idea }}</li> }</ul>
       </details>
-    </section>
+    </details>
 
-    <section class="card">
-      <p class="rotulo">Consenso entre criterios</p>
+    <details class="card seccion" open>
+      <summary><span class="rotulo">Consenso entre criterios</span></summary>
       @for (v of votos(e); track v[0]) {
         <div class="voto">
           <span>{{ v[0] }}</span>
-          <span class="marcas" aria-hidden="true">@for (m of marcas(e.consenso.total); track $index) { <i [class.lleno]="$index < v[1]"></i> }</span>
+          <span class="pista" aria-hidden="true"><span class="barra-voto" [style.width.%]="pct(v[1], e.consenso.total)"></span></span>
           <b>{{ v[1] }} de {{ e.consenso.total }}</b>
         </div>
       }
       <p [class]="e.consenso.mayoria ? 'dictamen' : 'dictamen sin-mayoria'" role="status">{{ e.consenso.mensaje }}</p>
-    </section>
+    </details>
 
-    <section class="card">
-      <p class="rotulo">Registro de la decisión</p>
+    <details class="card seccion" open>
+      <summary><span class="rotulo">Registro de la decisión</span></summary>
       <p class="mu">El sistema orienta, pero la decisión final es de quien administra. Queda guardada con la matriz y los resultados de este momento, y se refleja en el Dashboard y en Reportes.</p>
       <div class="formulario">
         <label>Alternativa elegida
@@ -143,6 +143,6 @@
       @if (errorRegistro()) { <p class="err" role="alert">{{ errorRegistro() }}</p> }
       @if (registrada()) { <p class="okmsg" role="status">{{ registrada() }}</p> }
       <button class="btn" type="button" data-acc="registrar" [disabled]="ocupado()" (click)="registrar()">Registrar decisión</button>
-    </section>
+    </details>
   }
 }
