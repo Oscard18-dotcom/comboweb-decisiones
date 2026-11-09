@@ -1,7 +1,7 @@
 {
   "name": "comboweb-decisiones",
-  "version": "1.0.0",
-  "description": "ComboWeb Decisiones - EN COMBO (ComboWeb App + pestaña \"Toma de decisiones\" para administración)",
+  "version": "1.1.0",
+  "description": "ComboWeb Decisiones - EN COMBO (toma de decisiones en Angular + data warehouse)",
   "main": "src/server.js",
   "engines": {
     "node": ">=18"
@@ -25,7 +25,11 @@
     "start:nube": "node scripts/preparar-nube.js && node src/server.js",
     "test:sprint8": "node scripts/test-sprint8.js",
     "test:sprint9": "node scripts/test-sprint9.js",
-    "test:decisiones": "node scripts/test-decisiones.js"
+    "test:decisiones": "node scripts/test-decisiones.js",
+    "test:warehouse": "node scripts/test-warehouse.js",
+    "test:angular": "node scripts/test-angular.js",
+    "angular:compilar": "cd angular-decisiones && npm install && npx ng build",
+    "test:sprint10": "node scripts/test-sprint10.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

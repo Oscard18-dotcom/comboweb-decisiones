@@ -35,6 +35,19 @@
         <label>Correo<input name="correo" type="email" autocomplete="email" required></label>
         <label>Contraseña<input name="password" type="password" autocomplete="current-password" required></label>
         <button class="btn" type="submit">Entrar</button>
+        <p><button id="ir-olvide" class="enlace" type="button">¿Olvidaste tu contraseña?</button></p>
+      </form>
+      <form id="f-olvide" data-path="/auth/olvide" hidden>
+        <p>Escribe tu correo y te enviamos un enlace para crear una nueva contraseña.</p>
+        <label>Correo<input name="correo" type="email" autocomplete="email" required></label>
+        <button class="btn" type="submit">Enviar enlace</button>
+        <p><button class="enlace" type="button" data-volver>Volver a iniciar sesión</button></p>
+      </form>
+      <form id="f-reset" data-path="/auth/restablecer" hidden>
+        <p>Crea tu nueva contraseña.</p>
+        <label>Nueva contraseña (mínimo 8 caracteres)<input name="nueva" type="password" autocomplete="new-password" required minlength="8" maxlength="72"></label>
+        <label>Repite la nueva contraseña<input name="repetir" type="password" autocomplete="new-password" required minlength="8" maxlength="72"></label>
+        <button class="btn" type="submit">Guardar contraseña</button>
       </form>
       <form id="f-reg" data-path="/auth/register" hidden>
         <label>Nombre completo<input name="nombre" autocomplete="name" required minlength="2" maxlength="80"></label>
@@ -43,6 +56,7 @@
         <button class="btn" type="submit">Crear cuenta</button>
       </form>
       <p id="err" class="err" role="alert"></p>
+      <p id="okauth" class="okmsg" role="status"></p>
     </section>
     <section id="staff" hidden></section>
     <section id="armar" hidden></section>
