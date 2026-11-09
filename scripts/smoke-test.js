@@ -1,5 +1,3 @@
-// Pruebas de humo de la API. Úsalas SOLO en tu base de datos de desarrollo (crea usuarios y productos de prueba).
-// Requiere el servidor corriendo y SEED_PASSWORD en el entorno:  SEED_PASSWORD=tu_clave BASE_URL=http://localhost:3000 npm run test:smoke
 const B=process.env.BASE_URL||'http://localhost:3000';let pass=0,fail=0;
 const R=Date.now();
 async function call(m,p,body,tok){const r=await fetch(B+p,{method:m,headers:{'Content-Type':'application/json',...(tok?{Authorization:'Bearer '+tok}:{})},body:body===undefined?undefined:(typeof body==='string'?body:JSON.stringify(body))});let j={};try{j=await r.json()}catch{}return{s:r.status,j}}

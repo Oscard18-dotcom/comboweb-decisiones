@@ -11,26 +11,22 @@ const limCotizar = lim(300, 'Demasiadas consultas. Intenta de nuevo en unos minu
 const limCheckout = lim(30, 'Demasiados intentos de pago. Intenta de nuevo en unos minutos.');
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-// Horarios libres de una fecha (HU03)
 router.get('/disponibilidad', limCotizar, wrap(async (req, res) => {
   if (!svc.fechaValida(req.query.fecha)) return res.status(400).json({ error: 'Elige una fecha válida (AAAA-MM-DD).' });
   res.json({ fecha: req.query.fecha, horarios: await svc.horarios(db, req.query.fecha) });
 }));
 
-// Cotiza y valida el combo sin guardar nada (HU01–HU03)
 router.post('/cotizar', limCotizar, wrap(async (req, res) => {
   const { errores, detalle } = await svc.validar(db, req.body);
   res.json({ ok: errores.length === 0, errores, detalle });
 }));
 
-// Paso 12: valida, guarda el combo y entrega el enlace de la pasarela (HU04)
 router.post('/checkout', auth, roles('cliente'), limCheckout, wrap(async (req, res) => {
   const r = await svc.crearCheckout(req.user, req.body, pagos.obtener());
   if (r.errores) return res.status(422).json({ error: r.errores[0].mensaje, errores: r.errores });
   res.status(201).json(r);
 }));
 
-// Estado de un pago (el cliente lo consulta al volver de la pasarela)
 router.get('/checkout/:id', auth, roles('cliente'), wrap(async (req, res) => {
   if (!UUID.test(req.params.id)) return res.status(400).json({ error: 'Identificador inválido.' });
   const { rows } = await db.query('SELECT id,estado,total,pedido_id FROM checkouts WHERE id=$1 AND cliente_id=$2', [req.params.id, req.user.id]);
@@ -40,7 +36,6 @@ router.get('/checkout/:id', auth, roles('cliente'), wrap(async (req, res) => {
 
 router.get('/', auth, roles('cliente'), wrap(async (req, res) => res.json({ pedidos: await svc.pedidosDe(req.user.id) })));
 
-// Detalle / comprobante digital: el dueño, cocina o administración
 router.get('/:id', auth, wrap(async (req, res) => {
   const id = paramId(req);
   if (!id) return res.status(400).json({ error: 'Identificador inválido.' });

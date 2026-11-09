@@ -1,10 +1,8 @@
-// Guardia de seguridad visual: replaceChildren/append/prepend ignoran null, undefined y false (si no, el navegador escribiría la palabra "null" en pantalla)
 (() => { for (const m of ['replaceChildren', 'append', 'prepend']) { const orig = Element.prototype[m]; Element.prototype[m] = function (...a) { return orig.apply(this, a.filter((x) => x != null && x !== false)); }; } })();
 const $ = (s) => document.querySelector(s);
 const money = (n) => Number(n).toLocaleString('es-MX', { style: 'currency', currency: 'MXN' });
 const ROL = { cliente: 'Cliente', cocina: 'Cocina', almacen: 'Almacén', admin: 'Administrador' };
 const ESTC = { 'Pendiente': '#6A6141', 'En preparación': '#3F210E', 'Listo para entrega': '#3E5B3A', 'Entregado': '#7D756B' };
-// Construye elementos con textContent (nunca innerHTML): lo que escribe el usuario no puede inyectar código
 function el(tag, props = {}, ...kids) {
   const e = document.createElement(tag);
   for (const [k, v] of Object.entries(props)) {
@@ -17,23 +15,25 @@ function el(tag, props = {}, ...kids) {
   return e;
 }
 const chip = (estatus) => el('span', { class: 'chip', style: 'background:' + (ESTC[estatus] || '#7D756B') }, estatus);
-const REFRESCO = window.__REFRESCO_MS || 15000; // cada cuánto se actualiza "Mis pedidos"
+const REFRESCO = window.__REFRESCO_MS || 15000;
 const ln = (a, b, cls = '') => el('div', { class: 'ln ' + cls }, el('span', {}, a), el('span', {}, b));
 
 let token = null, user = null, cat = null, tab = 'armar';
-let retorno = { checkout: null, cancelado: null };
+let retorno = { checkout: null, cancelado: null }, resetToken = null;
 try {
   token = sessionStorage.getItem('t'); user = JSON.parse(sessionStorage.getItem('u') || 'null');
   const P = new URLSearchParams(location.search); retorno = { checkout: P.get('checkout'), cancelado: P.get('cancelado') };
-} catch (e) { /* sin almacenamiento */ }
+  if (/^[0-9a-f]{64}$/.test(P.get('reset') || '')) { resetToken = P.get('reset'); token = null; user = null; sessionStorage.removeItem('t'); sessionStorage.removeItem('u'); history.replaceState(null, '', location.pathname); }
+} catch (e) {  }
 
 async function api(path, { method = 'GET', body } = {}) {
+  const usado = token;
   const r = await fetch('/api' + path, {
-    method, headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: 'Bearer ' + token } : {}) },
+    method, headers: { 'Content-Type': 'application/json', ...(usado ? { Authorization: 'Bearer ' + usado } : {}) },
     body: body ? JSON.stringify(body) : undefined,
   });
   const j = await r.json().catch(() => ({}));
-  if (r.status === 401 && token) { setSession(null, null); throw new Error('Tu sesión expiró. Inicia sesión de nuevo.'); }
+  if (r.status === 401 && usado && usado === token) { setSession(null, null); throw new Error('Tu sesión expiró. Inicia sesión de nuevo.'); }
   if (!r.ok) throw new Error(j.error || 'Ocurrió un error.');
   return j;
 }
@@ -42,11 +42,10 @@ function setSession(t, u) {
   try {
     if (t) { sessionStorage.setItem('t', t); sessionStorage.setItem('u', JSON.stringify(u)); }
     else { sessionStorage.removeItem('t'); sessionStorage.removeItem('u'); }
-  } catch (e) { /* sin almacenamiento */ }
+  } catch (e) {  }
   paint();
 }
 
-/* ---------- Combo en construcción ---------- */
 const nuevoDir = () => ({ cp: '', colonia: '', calle: '', ext: '', int: '', ref: '', municipio: '', colonias: [], manual: false, estadoCP: '' });
 const nuevoCombo = () => ({ q: {}, pres: null, ded: false, text: '', fecha: '', hora: '', dir: nuevoDir() });
 let d = nuevoCombo();
@@ -128,7 +127,6 @@ function buildArmar() {
   const fecha = el('input', { type: 'date', min: manana(), 'aria-label': 'Fecha de entrega', onchange: async (ev) => { d.fecha = ev.target.value; await cargaHoras(); cotizar(); } });
   fecha.value = d.fecha;
 
-  /* ---------- Dirección de entrega: al escribir el código postal se llenan las colonias ---------- */
   const D = d.dir;
   let seqCP = 0;
   const campo = (rotulo, input, cls = '') => el('label', { class: cls }, rotulo, input);
@@ -186,7 +184,6 @@ function buildArmar() {
   pintar(null); cargaHoras(); if (Object.keys(d.q).length) cotizar();
 }
 
-/* ---------- Seguimiento ---------- */
 const ORDEN = ['Pendiente', 'En preparación', 'Listo para entrega', 'Entregado'];
 function linea(estatus, historial) {
   const hist = new Map((historial || []).map((h) => [h.estatus, h.creado_en]));
@@ -196,7 +193,6 @@ function linea(estatus, historial) {
     el('small', {}, hist.has(s) ? new Date(hist.get(s)).toLocaleString('es-MX', { dateStyle: 'short', timeStyle: 'short' }) : ''))));
 }
 
-/* ---------- Comprobante, pedidos y regreso de la pasarela ---------- */
 function comprobante(p) {
   return el('div', { class: 'ok' },
     el('h2', {}, `Comprobante ${p.folio}`), el('p', {}, chip(p.estatus)),
@@ -219,7 +215,7 @@ async function atenderRetorno() {
   const { checkout, cancelado } = retorno;
   if (!checkout && !cancelado) return;
   retorno = { checkout: null, cancelado: null };
-  try { history.replaceState(null, '', location.pathname); } catch (e) { /* ok */ }
+  try { history.replaceState(null, '', location.pathname); } catch (e) {  }
   if (cancelado) { mostrar(aviso('Pago cancelado', 'No se hizo ningún cobro y tu combo no se guardó. Puedes armarlo de nuevo cuando quieras.')); return; }
   mostrar(aviso('Confirmando tu pago…', 'Esto tarda unos segundos.'));
   for (let i = 0; i < 20; i++) {
@@ -247,12 +243,11 @@ async function cargarMis(silencioso = false) {
         el('button', { class: 'btn s', type: 'button', style: 'width:auto', onclick: () => verComprobante(p.id) }, 'Ver comprobante'))) : [el('p', { class: 'mu' }, 'Aún no tienes pedidos.')]));
   } catch (e) { if (!silencioso) root.replaceChildren(el('p', { class: 'err' }, e.message)); }
 }
-/* ---------- Notificaciones del cliente ---------- */
 const fechaHora = (f) => new Date(f).toLocaleString('es-MX', { dateStyle: 'short', timeStyle: 'short' });
 function pintarBadge(n) { const b = $('#badge'); if (!b) return; b.textContent = n > 99 ? '99+' : String(n); b.hidden = !(n > 0); b.setAttribute('aria-label', n + ' sin leer'); }
 async function cargarContador() {
   if (!user || user.rol !== 'cliente') return;
-  try { pintarBadge((await api('/avisos/contador')).no_leidas); } catch (e) { /* sin conexión: se reintenta */ }
+  try { pintarBadge((await api('/avisos/contador')).no_leidas); } catch (e) {  }
 }
 async function cargarAvisos(silencioso = false) {
   const root = $('#avisos');
@@ -261,11 +256,11 @@ async function cargarAvisos(silencioso = false) {
     const { avisos, no_leidas } = await api('/avisos');
     pintarBadge(no_leidas);
     const abrir = async (a) => {
-      if (!a.leida) { try { await api(`/avisos/${a.id}/leida`, { method: 'POST' }); } catch (e) { /* ok */ } }
+      if (!a.leida) { try { await api(`/avisos/${a.id}/leida`, { method: 'POST' }); } catch (e) {  } }
       tab = 'mis'; paint(); verComprobante(a.pedido_id);
     };
     root.replaceChildren(el('div', { class: 'row filtros' }, el('h2', { style: 'margin:0' }, 'Notificaciones'),
-        el('button', { class: 'mini', type: 'button', disabled: no_leidas === 0, onclick: async () => { try { await api('/avisos/leer-todas', { method: 'POST' }); } catch (e) { /* ok */ } cargarAvisos(true); } }, 'Marcar todas como leídas')),
+        el('button', { class: 'mini', type: 'button', disabled: no_leidas === 0, onclick: async () => { try { await api('/avisos/leer-todas', { method: 'POST' }); } catch (e) {  } cargarAvisos(true); } }, 'Marcar todas como leídas')),
       el('p', { class: 'mu' }, 'Aquí te avisamos cuando tu pedido se confirma y cada vez que cambia de estatus. Se actualiza solo.'),
       ...(avisos.length ? avisos.map((a) => el('div', { class: 'card aviso-n' + (a.leida ? '' : ' nueva') },
         el('div', { class: 'row', style: 'margin:0;justify-content:space-between;align-items:baseline' }, el('b', {}, (a.leida ? '' : '● ') + a.titulo), el('small', {}, fechaHora(a.creado_en))),
@@ -292,7 +287,6 @@ async function descargar(path, nombre) {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
-/* ---------- Pantalla ---------- */
 function card(parent, nombre, detalle, precio) {
   parent.append(el('div', { class: 'item' }, el('b', {}, nombre), el('small', {}, detalle || ''), el('span', { class: 'p' }, money(precio))));
 }
@@ -320,13 +314,31 @@ for (const f of [$('#f-login'), $('#f-reg')]) {
     catch (err) { $('#err').textContent = err.message; }
   });
 }
-function tabAuth(login) {
-  $('#f-login').hidden = !login; $('#f-reg').hidden = login;
-  $('#tab-login').classList.toggle('on', login); $('#tab-reg').classList.toggle('on', !login); $('#err').textContent = '';
+const VISTAS_AUTH = { login: '#f-login', reg: '#f-reg', olvide: '#f-olvide', reset: '#f-reset' };
+function vistaAuth(v, mensaje = '') {
+  for (const [k, sel] of Object.entries(VISTAS_AUTH)) $(sel).hidden = k !== v;
+  $('#tab-login').classList.toggle('on', v === 'login' || v === 'olvide' || v === 'reset'); $('#tab-reg').classList.toggle('on', v === 'reg');
+  $('#err').textContent = ''; $('#okauth').textContent = mensaje;
 }
+const tabAuth = (login) => vistaAuth(login ? 'login' : 'reg');
 $('#tab-login').onclick = () => tabAuth(true);
 $('#tab-reg').onclick = () => tabAuth(false);
-// Mi cuenta: cambiar la propia contraseña (cierra las demás sesiones y conserva esta)
+$('#ir-olvide').onclick = () => vistaAuth('olvide');
+$('#f-olvide [data-volver]').onclick = () => vistaAuth('login');
+$('#f-olvide').addEventListener('submit', async (e) => {
+  e.preventDefault(); $('#err').textContent = ''; $('#okauth').textContent = '';
+  try { const j = await api('/auth/olvide', { method: 'POST', body: Object.fromEntries(new FormData(e.target)) }); $('#okauth').textContent = j.mensaje; e.target.reset(); }
+  catch (err) { $('#err').textContent = err.message; }
+});
+$('#f-reset').addEventListener('submit', async (e) => {
+  e.preventDefault(); $('#err').textContent = '';
+  const v = new FormData(e.target), nueva = v.get('nueva');
+  if (nueva.length < 8) { $('#err').textContent = 'La nueva contraseña debe tener al menos 8 caracteres.'; return; }
+  if (nueva !== v.get('repetir')) { $('#err').textContent = 'La nueva contraseña y su confirmación no coinciden.'; return; }
+  try { await api('/auth/restablecer', { method: 'POST', body: { token: resetToken, nueva } }); resetToken = null; e.target.reset(); vistaAuth('login', 'Contraseña actualizada. Ya puedes iniciar sesión con la nueva.'); }
+  catch (err) { $('#err').textContent = err.message; }
+});
+if (resetToken) vistaAuth('reset');
 function abrirCuenta() {
   const c = $('#cuenta');
   if (!c.hidden) { c.hidden = true; return; }
@@ -337,7 +349,7 @@ function abrirCuenta() {
     const v = new FormData(f), actual = v.get('actual'), nueva = v.get('nueva');
     if (nueva.length < 8) { err.textContent = 'La nueva contraseña debe tener al menos 8 caracteres.'; return; }
     if (nueva !== v.get('repetir')) { err.textContent = 'La nueva contraseña y su confirmación no coinciden.'; return; }
-    try { const j = await api('/auth/cambiar-password', { method: 'POST', body: { actual, nueva } }); token = j.token; try { sessionStorage.setItem('t', j.token); } catch (e) { /* ok */ } f.reset(); okm.textContent = 'Contraseña actualizada. Se cerraron tus otras sesiones.'; }
+    try { const j = await api('/auth/cambiar-password', { method: 'POST', body: { actual, nueva } }); token = j.token; try { sessionStorage.setItem('t', j.token); } catch (e) {  } f.reset(); okm.textContent = 'Contraseña actualizada. Se cerraron tus otras sesiones.'; }
     catch (e) { err.textContent = e.message; }
   } }, campo('Contraseña actual', 'actual', 'current-password'), campo('Nueva contraseña (mínimo 8 caracteres)', 'nueva', 'new-password'), campo('Repite la nueva contraseña', 'repetir', 'new-password'),
     err, okm, el('div', { class: 'row' }, el('button', { class: 'btn', type: 'submit' }, 'Cambiar contraseña'), el('button', { class: 'btn s', type: 'button', onclick: () => { c.hidden = true; } }, 'Cerrar')));
@@ -348,6 +360,13 @@ $('#out').onclick = () => { d = nuevoCombo(); setSession(null, null); };
 document.querySelectorAll('#nav button').forEach((b) => { b.onclick = () => { tab = b.dataset.tab; $('#msg').hidden = true; paint(); }; });
 
 (async () => {
-  try { cat = await api('/catalogo'); } catch (e) { $('#err').textContent = e.message; }
+  for (let i = 0; i < 6 && !cat; i++) {
+    try { cat = await api('/catalogo'); $('#err').textContent = ''; }
+    catch (e) {
+      if (i === 5) { $('#err').textContent = 'No se pudo cargar el catálogo. Recarga la página en un momento.'; break; }
+      $('#err').textContent = 'El servidor está tardando en responder. Reintentando…';
+      await new Promise((r) => setTimeout(r, 2000 * (i + 1)));
+    }
+  }
   paint();
 })();

@@ -1,6 +1,3 @@
-// Pruebas del Sprint 9: dirección de entrega (código postal → colonias), vista de cocina/administración, cartel de demostración retirado.
-// Úsalas SOLO en tu base de desarrollo. Crean datos de prueba y los borran al terminar.
-//   npm run db:init && npm run test:sprint9      (requiere SEED_PASSWORD en .env; no necesita el servidor encendido)
 const fs = require('fs');
 const path = require('path');
 const app = require('../src/app');
@@ -16,7 +13,7 @@ const server = app.listen(0);
 const B = `http://localhost:${server.address().port}`;
 async function call(m, p, body, tok) {
   const r = await fetch(B + p, { method: m, headers: { 'Content-Type': 'application/json', ...(tok ? { Authorization: 'Bearer ' + tok } : {}) }, body: body === undefined ? undefined : JSON.stringify(body) });
-  let j = {}; try { j = JSON.parse(await r.text()); } catch (e) { /* sin cuerpo */ }
+  let j = {}; try { j = JSON.parse(await r.text()); } catch (e) {  }
   return { s: r.status, j };
 }
 const R = Date.now();
@@ -38,7 +35,6 @@ const q = async (sql, p) => (await db.query(sql, p)).rows;
     const DIR = { cp: '91190', colonia: 'Las Flores', calle: 'Calle de Prueba', num_ext: '12', num_int: '3', referencias: 'Portón negro' };
     const body = (o = {}) => ({ items: [{ producto_id: gal, cantidad: 1 }], presentacion_id: pres, fecha: dia(), hora: '12:00', direccion: DIR, ...o });
 
-    /* ===== Catálogo de códigos postales ===== */
     const cat91 = require('../src/data/cp-veracruz.json'), cps = Object.keys(cat91);
     t('catálogo SEPOMEX de Veracruz: más de 2 000 códigos, todos con municipio y colonias', cps.length > 2000 && cps.every((c) => /^\d{5}$/.test(c) && cat91[c].m && cat91[c].a.length > 0));
     let r = await call('GET', '/api/catalogo/codigo-postal/91190');
@@ -48,7 +44,6 @@ const q = async (sql, p) => (await db.query(sql, p)).rows;
     r = await call('GET', '/api/catalogo/codigo-postal/06000'); t('código fuera del catálogo → 200 con codigo_postal null', r.s === 200 && r.j.codigo_postal === null);
     for (const x of ['abc', '1234', '123456', '9119O']) { r = await call('GET', '/api/catalogo/codigo-postal/' + x); t(`código postal inválido “${x}” → 400`, r.s === 400); }
 
-    /* ===== Validación ===== */
     r = await call('POST', '/api/pedidos/cotizar', { items: [{ producto_id: gal, cantidad: 1 }], presentacion_id: pres, fecha: dia(), hora: '12:00' });
     t('cotizar NO exige dirección (se pide hasta pagar)', r.j.ok === true, JSON.stringify(r.j.errores));
     r = await call('POST', '/api/pedidos/checkout', body({ direccion: undefined }), cli); t('pagar sin dirección → 422', r.s === 422 && /direcci/i.test(r.j.error), JSON.stringify(r.j));
@@ -64,10 +59,8 @@ const q = async (sql, p) => (await db.query(sql, p)).rows;
     t('código fuera del catálogo sin municipio → 422 (pide municipio)', r.s === 422 && r.j.errores.some((e) => e.campo === 'direccion.municipio'));
     r = await call('POST', '/api/pedidos/checkout', body({ direccion: { ...DIR, cp: '91190', colonia: 'Roma', municipio: 'Otro lugar' } }), cli);
     t('código del catálogo: el municipio que envíe el cliente se ignora y la colonia se valida', r.s === 422);
-    // sin sesión / rol
     r = await call('POST', '/api/pedidos/checkout', body()); t('pagar sin sesión sigue siendo 401', r.s === 401);
 
-    /* ===== Compra completa con dirección ===== */
     const compra = async (o, tok = cli) => { const c = await call('POST', '/api/pedidos/checkout', body(o), tok); if (c.s !== 201) return { c }; const a = await call('POST', `/api/pagos/simulado/${c.j.checkout_id}/aprobar`, undefined, tok); return { c, a, id: a.j.pedido_id }; };
     let P = await compra({ direccion: { ...DIR, colonia: 'las flores', referencias: 'Portón\u0007 negro\n  frente al parque' } });
     t('checkout con dirección válida → 201 y pago aprobado → pedido', P.c.s === 201 && P.a.j.estado === 'pagado' && !!P.id, JSON.stringify(P.c.j));
@@ -89,20 +82,15 @@ const q = async (sql, p) => (await db.query(sql, p)).rows;
     }
     const noti = (await q("SELECT cuerpo_texto,cuerpo_html FROM notificaciones WHERE pedido_id=$1 AND plantilla='confirmacion'", [P.id]))[0];
     t('el correo de confirmación incluye la dirección (texto y HTML)', !!noti && /Dirección: Calle de Prueba 12 int\. 3, Col\. Las Flores, C\.P\. 91190, Xalapa, Veracruz/.test(noti.cuerpo_texto) && /<b>Dirección:<\/b> Calle de Prueba 12 int\. 3/.test(noti.cuerpo_html));
-    // Texto con HTML: se guarda como texto y en el correo se escapa
     P = await compra({ direccion: { ...DIR, calle: '<img src=x onerror=alert(1)>', referencias: '<script>x</script>' } });
     const n2 = (await q("SELECT cuerpo_html FROM notificaciones WHERE pedido_id=$1 AND plantilla='confirmacion'", [P.id]))[0];
     t('HTML escrito en la calle se guarda como texto y se escapa en el correo', !!n2 && !/<img src=x/.test(n2.cuerpo_html) && /&lt;img/.test(n2.cuerpo_html));
-    // Fuera de catálogo, a mano
     P = await compra({ direccion: { cp: '06000', colonia: 'Centro (a mano)', municipio: 'Ciudad de México', calle: 'Reforma', num_ext: 'S/N' } });
     const f3 = (await q('SELECT dir_colonia,dir_municipio,dir_estado,dir_num_int FROM pedidos WHERE id=$1', [P.id]))[0];
     t('código fuera del catálogo con colonia y municipio escritos a mano → pedido válido', P.c.s === 201 && !!P.id && f3.dir_colonia === 'Centro (a mano)' && f3.dir_municipio === 'Ciudad de México' && f3.dir_estado === null && f3.dir_num_int === null, JSON.stringify(P.c.j));
-    // Colonia con una sola opción y sin acentos
     P = await compra({ direccion: { cp: '91000', colonia: 'xalapa enriquez centro', calle: 'Enríquez', num_ext: 'S/N' } });
     t('la colonia se acepta sin acentos ni mayúsculas y se guarda como en el catálogo', !!P.id && (await q('SELECT dir_colonia FROM pedidos WHERE id=$1', [P.id]))[0].dir_colonia === 'Xalapa Enríquez Centro');
 
-
-    /* ===== Bandeja de notificaciones del cliente ===== */
     let av = await call('GET', '/api/avisos', undefined, otro);
     t('un cliente sin pedidos tiene su bandeja vacía', av.s === 200 && av.j.avisos.length === 0 && av.j.no_leidas === 0);
     av = await call('GET', '/api/avisos', undefined, cli);
@@ -119,7 +107,6 @@ const q = async (sql, p) => (await db.query(sql, p)).rows;
     t('cada cambio de estatus genera su notificación (confirmación + 3 cambios)', delPedido.length === 4 && ['en preparación', 'listo para entrega', 'fue entregado'].every((x) => delPedido.some((a) => a.titulo.toLowerCase().includes(x))), JSON.stringify(delPedido.map((a) => a.titulo)));
     t('las notificaciones vienen de la más nueva a la más vieja', /entregado/.test(delPedido[0].titulo));
     t('el contador subió con las 3 nuevas', (await call('GET', '/api/avisos/contador', undefined, cli)).j.no_leidas === antes + 3);
-    // otro cliente no ve ni toca avisos ajenos
     t('otro cliente no ve los avisos de este pedido', !(await call('GET', '/api/avisos', undefined, otro)).j.avisos.some((a) => a.pedido_id === idPrimero));
     r = await call('POST', `/api/avisos/${conf.id}/leida`, undefined, otro); t('otro cliente no puede marcar mi aviso como leído → 404', r.s === 404);
     r = await call('POST', `/api/avisos/${conf.id}/leida`, undefined, cli); t('marcar un aviso como leído', r.s === 200 && (await call('GET', '/api/avisos/contador', undefined, cli)).j.no_leidas === antes + 2);
@@ -131,14 +118,12 @@ const q = async (sql, p) => (await db.query(sql, p)).rows;
     for (const [n, tok] of [['sin sesión', null], ['administrador', admin], ['cocina', cocina]]) { r = await call('GET', '/api/avisos', undefined, tok); t(`bandeja de cliente: ${n} → ${tok ? 403 : 401}`, r.s === (tok ? 403 : 401)); }
     t('el correo sigue encolado además de la notificación en pantalla', (await q("SELECT count(*)::int n FROM notificaciones WHERE pedido_id=$1", [idPrimero]))[0].n === 4);
 
-    /* ===== Pedidos anteriores (sin dirección) ===== */
     const viejo = (await q(`INSERT INTO pedidos(cliente_id,presentacion_id,fecha_entrega,hora_entrega,total,estatus) VALUES($1,$2,$3,'17:00',45,'Pendiente') RETURNING id`, [clientes[0], pres, svc.addDays(hoy, 3)]))[0].id;
     await q("INSERT INTO pedido_estatus_historial(pedido_id,estatus) VALUES($1,'Pendiente')", [viejo]);
     r = await call('GET', '/api/pedidos/' + viejo, undefined, cli); t('pedido anterior sin dirección: el comprobante abre y la dirección es null', r.s === 200 && r.j.pedido.entrega.direccion === null);
     r = await call('GET', '/api/cocina/pedidos/' + viejo, undefined, cocina); t('pedido anterior sin dirección: la ficha de cocina abre y la dirección es null', r.s === 200 && r.j.pedido.direccion === null);
     r = await call('GET', '/api/pedidos', undefined, cli); t('“Mis pedidos” con un pedido sin dirección no falla', r.s === 200 && r.j.pedidos.find((x) => x.id === viejo).direccion === null);
 
-    /* ===== Cartel de demostración retirado y pantallas ===== */
     const html = fs.readFileSync(path.join(ROOT, 'public', 'index.html'), 'utf8'), css = fs.readFileSync(path.join(ROOT, 'public', 'styles.css'), 'utf8'), appjs = fs.readFileSync(path.join(ROOT, 'public', 'app.js'), 'utf8');
     t('la página ya no trae el cartel “Sitio de demostración”', !/Sitio de demostración/.test(html) && !/id="demo"/.test(html) && !appjs.includes('#demo'));
     t('el formulario pide la dirección después de la fecha y hora (paso 5)', appjs.indexOf("'4. Fecha y hora de entrega'") < appjs.indexOf("'5. Dirección de entrega'"));

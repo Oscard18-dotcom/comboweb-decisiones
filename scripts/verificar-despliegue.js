@@ -1,6 +1,3 @@
-// Revisión previa a publicar el sistema. Muestra qué está bien (✔), qué conviene revisar (⚠) y qué debe corregirse (✖).
-//   NODE_ENV=production npm run verificar        (con tus variables de producción)
-// Termina con código 1 si hay algún ✖.
 const res = [];
 const marca = { ok: '✔', aviso: '⚠', fallo: '✖' };
 const chk = (nivel, texto, detalle = '') => res.push({ nivel, texto, detalle });

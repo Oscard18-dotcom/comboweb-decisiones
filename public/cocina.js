@@ -1,4 +1,3 @@
-// Tablero de pedidos de cocina (Sprint 5): lista del día, ficha técnica y cambio de estatus
 Personal.registrar('tab', 'Tablero de pedidos', ['cocina', 'admin'], 2, (cont, H) => {
   const { e, api, chipC } = H;
   const COLS = [['Pendiente', '#6A6141', 'Iniciar', 'En preparación'], ['En preparación', '#3F210E', 'Marcar listo', 'Listo para entrega'], ['Listo para entrega', '#3E5B3A', 'Entregar', 'Entregado'], ['Entregado', '#7D756B', null, null]];
@@ -10,7 +9,6 @@ Personal.registrar('tab', 'Tablero de pedidos', ['cocina', 'admin'], 2, (cont, H
   cont.append(e('div', { class: 'row filtros noprint' }, e('h2', { style: 'margin:0' }, 'Pedidos del día'), inp,
     e('button', { class: 'mini', type: 'button', onclick: () => { fecha = ''; cargar(); } }, 'Hoy'), e('button', { class: 'mini', type: 'button', onclick: () => cargar() }, 'Actualizar'), estado), err, tablero, ficha);
 
-  // Si llega otra petición (cambio de fecha, botón) mientras se está cargando, se repite al terminar: nunca se pierde
   async function cargar() {
     if (cargando) { pendiente = true; return; }
     cargando = true;
@@ -19,7 +17,7 @@ Personal.registrar('tab', 'Tablero de pedidos', ['cocina', 'admin'], 2, (cont, H
       const pedida = fecha;
       try {
         const d = await api('/cocina/pedidos' + (pedida ? '?fecha=' + encodeURIComponent(pedida) : ''));
-        if (fecha !== pedida) continue;            // el usuario cambió la fecha mientras cargaba: esta respuesta ya no sirve, se repite
+        if (fecha !== pedida) continue;
         datos = d; fecha = d.fecha; inp.value = fecha; pintar();
         estado.textContent = 'Actualizado ' + new Date().toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' }) + ' · se actualiza solo cada 20 s';
       } catch (er) { err.replaceChildren(e('div', {}, er.message)); }

@@ -1,8 +1,6 @@
 const jwt = require('jsonwebtoken');
 const db = require('../db');
 
-// Verifica el token y vuelve a leer al usuario en la base de datos:
-// así, si se le cambia el rol o se le da de baja, el cambio aplica de inmediato.
 async function auth(req, res, next) {
   try {
     const h = req.headers.authorization || '';
@@ -10,7 +8,6 @@ async function auth(req, res, next) {
     if (!token) return res.status(401).json({ error: 'Inicia sesión para continuar.' });
     const payload = jwt.verify(token, process.env.JWT_SECRET);
     const { rows } = await db.query('SELECT id,nombre,correo,rol,activo,token_version FROM usuarios WHERE id=$1', [payload.id]);
-    // Los tokens anteriores al Sprint 6 no traen versión: cuentan como versión 0
     if (!rows[0] || !rows[0].activo || (payload.v ?? 0) !== rows[0].token_version) return res.status(401).json({ error: 'Sesión inválida.' });
     req.user = rows[0];
     next();

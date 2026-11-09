@@ -1,0 +1,74 @@
+<div class="card">
+  <p class="rotulo">Qué es el almacén de datos</p>
+  <p>Es una base de datos aparte, pensada solo para <b>analizar</b>. Se llena con un proceso <b>ETL</b>: se <b>extraen</b> los pedidos del sistema, se <b>transforman</b> (se ordenan por fecha, producto, presentación y zona) y se <b>cargan</b> en un esquema de estrella. Así se pueden hacer preguntas de negocio sin tocar la base que usan los clientes.</p>
+  <figure class="estrella">
+    <svg viewBox="0 0 560 250" role="img" aria-label="Esquema de estrella: la tabla de hechos fact_ventas conectada con las dimensiones fecha, producto, presentación y zona">
+      <g class="lin"><line x1="280" y1="125" x2="95" y2="45" /><line x1="280" y1="125" x2="465" y2="45" /><line x1="280" y1="125" x2="95" y2="205" /><line x1="280" y1="125" x2="465" y2="205" /></g>
+      <g class="dim"><rect x="20" y="15" width="150" height="60" rx="8" /><rect x="390" y="15" width="150" height="60" rx="8" /><rect x="20" y="175" width="150" height="60" rx="8" /><rect x="390" y="175" width="150" height="60" rx="8" /></g>
+      <rect class="hecho" x="195" y="90" width="170" height="70" rx="8" />
+      <g class="txt">
+        <text x="95" y="40" text-anchor="middle" class="t1">dim_fecha</text><text x="95" y="58" text-anchor="middle" class="t2">día, mes, temporada</text>
+        <text x="465" y="40" text-anchor="middle" class="t1">dim_producto</text><text x="465" y="58" text-anchor="middle" class="t2">nombre, precio, costo</text>
+        <text x="95" y="200" text-anchor="middle" class="t1">dim_presentacion</text><text x="95" y="218" text-anchor="middle" class="t2">tipo de caja</text>
+        <text x="465" y="200" text-anchor="middle" class="t1">dim_zona</text><text x="465" y="218" text-anchor="middle" class="t2">CP, colonia, municipio</text>
+        <text x="280" y="120" text-anchor="middle" class="t1 h">fact_ventas</text><text x="280" y="139" text-anchor="middle" class="t2 h">cantidad, ingreso, costo</text>
+      </g>
+    </svg>
+    <figcaption class="mu">Una venta (hecho) se describe con cuatro dimensiones. Tabla de hechos al centro, dimensiones alrededor.</figcaption>
+  </figure>
+</div>
+
+<div class="card">
+  <p class="rotulo">Carga de datos (ETL)</p>
+  @if (r(); as x) {
+    <p class="mu">En el warehouse hay <b>{{ x.filas.pedido | number }}</b> ventas de pedidos reales y <b>{{ x.filas.demo | number }}</b> de demostración.
+      @if (x.ultima_carga) { Última carga: {{ fh(x.ultima_carga.creado_en) }} } @else { Aún no se ha cargado nada. }</p>
+  }
+  <div class="row filtros">
+    <button class="btn" type="button" data-acc="etl-demo" style="width:auto" [disabled]="ocupado()" (click)="etl(true)">Cargar con historial de demostración (12 meses)</button>
+    <button class="mini" type="button" data-acc="etl" [disabled]="ocupado()" (click)="etl(false)">Cargar solo pedidos reales</button>
+    <button class="mini" type="button" data-acc="quitar-demo" [disabled]="ocupado() || !r()?.filas?.demo" (click)="quitarDemo()">Quitar demostración</button>
+    <button class="mini" type="button" data-acc="exportar-dw" [disabled]="ocupado() || vacio()" (click)="exportar()">Exportar para Power BI</button>
+  </div>
+  <p class="mu">El historial de demostración es información inventada (con más ventas en diciembre, febrero y mayo, y los fines de semana) para poder ver el warehouse funcionando. Cada vez que se carga, se reemplaza por completo, no se duplica.</p>
+  @if (error()) { <p class="err" role="alert">{{ error() }}</p> }
+  @if (exito()) { <p class="okmsg" role="status">{{ exito() }}</p> }
+</div>
+
+@if (cargando() && !r()) { <p class="mu" role="status">Cargando…</p> }
+@if (r(); as x) {
+  @if (vacio()) {
+    <p class="aviso" role="status">El warehouse está vacío. Pulsa “Cargar con historial de demostración” para llenarlo.</p>
+  } @else {
+    <div class="seg" role="group" aria-label="Qué datos mostrar">
+      <button type="button" data-origen="todos" [class.on]="origen() === 'todos'" (click)="filtrar('todos')">Todo</button>
+      <button type="button" data-origen="pedido" [class.on]="origen() === 'pedido'" (click)="filtrar('pedido')">Solo pedidos reales</button>
+      <button type="button" data-origen="demo" [class.on]="origen() === 'demo'" (click)="filtrar('demo')">Solo demostración</button>
+    </div>
+
+    <div class="kpis" data-kpis="1">
+      <div class="kpi"><span>Ingresos</span><b>${{ x.kpis.ingreso | number:'1.0-0' }}</b></div>
+      <div class="kpi"><span>Utilidad estimada</span><b>${{ x.kpis.utilidad | number:'1.0-0' }}</b></div>
+      <div class="kpi"><span>Margen</span><b>{{ x.kpis.margen | percent:'1.0-0' }}</b></div>
+      <div class="kpi"><span>Piezas vendidas</span><b>{{ x.kpis.piezas | number }}</b></div>
+    </div>
+
+    <div class="card">
+      <p class="rotulo">Ingresos por mes</p>
+      <app-barras [datos]="meses()" [columnas]="true" prefijo="$" titulo="Ingresos por mes" />
+    </div>
+    <div class="grid2">
+      <div class="card"><p class="rotulo">Ingresos por día de la semana</p><app-barras [datos]="dias()" [columnas]="true" prefijo="$" titulo="Ingresos por día de la semana" /></div>
+      <div class="card"><p class="rotulo">Ingreso diario promedio por temporada</p><app-barras [datos]="temporadas()" prefijo="$" sufijo=" al día" titulo="Ingreso diario promedio por temporada" /></div>
+    </div>
+    <div class="grid2">
+      <div class="card"><p class="rotulo">Productos que más ingresan</p><app-barras [datos]="productos()" prefijo="$" titulo="Ingresos por producto" /></div>
+      <div class="card"><p class="rotulo">Ingresos por municipio</p><app-barras [datos]="zonas()" prefijo="$" titulo="Ingresos por municipio" /></div>
+    </div>
+    <div class="card">
+      <p class="rotulo">Relación con las decisiones y los reportes</p>
+      <p class="mu">Los datos del warehouse sirven para estimar los números de la matriz de pagos: por ejemplo, la temporada con más ingreso diario ayuda a decidir qué combo lanzar, y los municipios que más compran ayudan a elegir la zona de entrega. Una vez que tengas una estimación, escríbela en “Analizar una decisión” y pulsa “Guardar como mis datos”. Las cifras de ventas reales también están en el Dashboard y en Reportes.</p>
+      <p class="atajos"><button type="button" class="vinculo" data-ir="dash" (click)="ir('dash')">Abrir Dashboard</button><button type="button" class="vinculo" data-ir="rep" (click)="ir('rep')">Abrir Reportes</button></p>
+    </div>
+  }
+}

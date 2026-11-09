@@ -12,7 +12,6 @@ const ESTATUS = ['Pendiente', 'En preparación', 'Listo para entrega', 'Entregad
 const SIG = { 'Pendiente': 'En preparación', 'En preparación': 'Listo para entrega', 'Listo para entrega': 'Entregado' };
 const ANT = Object.fromEntries(Object.entries(SIG).map(([a, b]) => [b, a]));
 
-// Ficha técnica: combo, presentación, dedicatoria, hora e ingredientes que consume cada pedido
 async function fichas(rows) {
   const ids = rows.map((r) => r.id);
   const ing = ids.length ? (await db.query(
@@ -29,7 +28,6 @@ const BASE = `SELECT p.id,p.estatus,p.fecha_entrega::text AS fecha,left(p.hora_e
     (SELECT json_agg(json_build_object('nombre',pd.nombre,'cantidad',i.cantidad) ORDER BY pd.nombre) FROM pedido_items i JOIN productos pd ON pd.id=i.producto_id WHERE i.pedido_id=p.id) AS items
   FROM pedidos p JOIN presentaciones pr ON pr.id=p.presentacion_id JOIN usuarios u ON u.id=p.cliente_id`;
 
-// Tablero del día: los pedidos que se entregan ese día + los de días anteriores que siguen sin entregarse (atrasados)
 router.get('/pedidos', wrap(async (req, res) => {
   const fecha = req.query.fecha || svc.todayMX();
   if (!svc.fechaValida(fecha)) return res.status(400).json({ error: 'Elige una fecha válida (AAAA-MM-DD).' });
@@ -48,7 +46,6 @@ router.get('/pedidos/:id', wrap(async (req, res) => {
   res.json({ pedido: (await fichas(rows))[0] });
 }));
 
-// Cambio de estatus: solo hacia adelante y de uno en uno. Pedir el estatus que ya tiene no hace nada (doble clic seguro).
 router.patch('/pedidos/:id/estatus', wrap(async (req, res) => {
   const id = paramId(req), objetivo = (req.body || {}).estatus;
   if (!id) return res.status(400).json({ error: 'Identificador inválido.' });
@@ -68,7 +65,7 @@ router.patch('/pedidos/:id/estatus', wrap(async (req, res) => {
     }
     await c.query('UPDATE pedidos SET estatus=$2 WHERE id=$1', [id, objetivo]);
     await c.query('INSERT INTO pedido_estatus_historial(pedido_id,estatus,usuario_id) VALUES($1,$2,$3) ON CONFLICT DO NOTHING', [id, objetivo, req.user.id]);
-    await notif.encolar(c, id, objetivo); // aviso al cliente, en la misma transacción
+    await notif.encolar(c, id, objetivo);
     await c.query('COMMIT');
     notif.disparar();
     res.json({ pedido, sin_cambio: false });

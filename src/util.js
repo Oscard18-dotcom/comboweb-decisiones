@@ -1,8 +1,6 @@
-// Envuelve handlers async para que los errores lleguen al manejador global
 const wrap = (fn) => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
 
 const isEmail = (v) => typeof v === 'string' && v.length <= 120 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim());
-// bcrypt solo considera los primeros 72 bytes
 const isPassword = (v) => typeof v === 'string' && v.length >= 8 && Buffer.byteLength(v) <= 72;
 const isText = (v, min, max) => typeof v === 'string' && v.trim().length >= min && v.trim().length <= max;
 const parsePrice = (v) => {

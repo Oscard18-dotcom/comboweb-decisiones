@@ -1,4 +1,3 @@
-// Pedidos de compra de insumos a proveedores (Sprint 7)
 const db = require('../db');
 const notif = require('./notificaciones');
 const { todayMX } = require('./pedidos');
@@ -6,13 +5,11 @@ const { todayMX } = require('./pedidos');
 const folioPP = notif.folioPP;
 const err = (status, msg) => Object.assign(new Error(msg), { status, publico: msg });
 
-// Cantidad > 0 con máximo 4 decimales (null si no es válida)
 const cant4 = (v) => {
   const n = typeof v === 'string' && v.trim() !== '' ? Number(v) : v;
   return typeof n === 'number' && Number.isFinite(n) && n > 0 && n <= 1e7 && Math.abs(n * 1e4 - Math.round(n * 1e4)) < 1e-6 ? Math.round(n * 1e4) / 1e4 : null;
 };
 
-// Suma al stock y deja un movimiento de entrada por cada insumo (dentro de la transacción c)
 async function aplicarStock(c, pedidoId, usuarioId) {
   const { rows } = await c.query(
     `SELECT it.insumo_id,it.cantidad,pr.nombre AS proveedor FROM pedido_proveedor_items it
@@ -83,7 +80,6 @@ async function crear(user, b) {
       'INSERT INTO pedidos_proveedor(proveedor_id,usuario_id,suma_stock_en,nota,fecha_requerida) VALUES($1,$2,$3,$4,$5) RETURNING id',
       [provId, user.id, suma, nota, fecha])).rows[0];
     for (const it of items) await c.query('INSERT INTO pedido_proveedor_items(pedido_id,insumo_id,cantidad) VALUES($1,$2,$3)', [pp.id, it.id, it.cant]);
-    // El correo se escribe en la bandeja en la MISMA transacción: si algo falla, no hay pedido a medias ni correo fantasma
     await notif.encolarProveedor(c, pp.id, 'pedido', user.correo);
     if (suma === 'envio') await aplicarStock(c, pp.id, user.id);
     await c.query('COMMIT');
@@ -92,7 +88,6 @@ async function crear(user, b) {
   } catch (e) { await c.query('ROLLBACK').catch(() => {}); throw e; } finally { c.release(); }
 }
 
-// Marca como recibido. Si el stock aún no se sumó, se suma ahora. Es idempotente: recibirlo dos veces no duplica nada.
 async function recibir(id, user) {
   const c = await db.pool.connect();
   try {

@@ -7,7 +7,7 @@ const svc = require('../services/pedidos');
 router.use(auth, roles('admin'));
 
 const TZ = "'America/Mexico_City'";
-const FECHA = `(p.creado_en AT TIME ZONE ${TZ})::date`; // el día en que se hizo el pedido, hora de México
+const FECHA = `(p.creado_en AT TIME ZONE ${TZ})::date`;
 const r2 = (n) => Math.round(Number(n) * 100) / 100;
 const ESTATUS = ['Pendiente', 'En preparación', 'Listo para entrega', 'Entregado'];
 const UNIDAD = { dia: 'day', semana: 'week', mes: 'month' };
@@ -20,8 +20,6 @@ function rango(req, res) {
   if ((Date.parse(hasta) - Date.parse(desde)) / 864e5 > 366) { res.status(400).json({ error: 'El rango máximo es de un año.' }); return null; }
   return { desde, hasta };
 }
-// CSV para abrir en Excel (con BOM para que respete los acentos). Los textos que empiezan con = + - @ se neutralizan
-// para que no se ejecuten como fórmulas; los números no se tocan.
 const celda = (v) => {
   let s = v == null ? '' : String(v);
   if (typeof v === 'string' && /^[=+\-@\t\r]/.test(s)) s = "'" + s;
@@ -32,10 +30,9 @@ function csv(res, nombre, cabecera, filas) {
   res.send('\uFEFF' + [cabecera, ...filas].map((f) => f.map(celda).join(',')).join('\r\n') + '\r\n');
 }
 
-/* Dashboard: lo importante del día en una sola consulta */
 router.get('/dashboard', wrap(async (req, res) => {
   const hoy = svc.todayMX();
-  const [ventas, est, entregas, reorden, prox, serie, notif, rev, ppx] = await Promise.all([
+  const [ventas, est, entregas, reorden, prox, serie, notif, rev, ppx, dec] = await Promise.all([
     db.query(`SELECT count(*)::int AS n, coalesce(sum(total),0) AS total FROM pedidos p WHERE ${FECHA} = $1`, [hoy]),
     db.query('SELECT estatus, count(*)::int AS n FROM pedidos GROUP BY estatus'),
     db.query("SELECT count(*)::int AS n FROM pedidos WHERE fecha_entrega=$1 AND estatus<>'Entregado'", [hoy]),
@@ -48,6 +45,8 @@ router.get('/dashboard', wrap(async (req, res) => {
     db.query("SELECT estado, count(*)::int AS n FROM notificaciones WHERE estado IN ('fallida','error','pendiente') GROUP BY estado"),
     db.query(`SELECT c.id,c.total,c.proveedor,c.referencia,c.creado_en,u.nombre AS cliente FROM checkouts c JOIN usuarios u ON u.id=c.cliente_id WHERE c.estado='revision' ORDER BY c.creado_en DESC LIMIT 5`),
     db.query("SELECT count(*)::int AS n FROM pedidos_proveedor WHERE estado='enviado' AND NOT stock_aplicado"),
+    db.query(`SELECT d.id,d.titulo,d.alternativa,d.base,d.creado_en,u.nombre AS usuario,count(*) OVER ()::int AS total
+                FROM decisiones d LEFT JOIN usuarios u ON u.id=d.usuario_id ORDER BY d.id DESC LIMIT 1`),
   ]);
   const porEstatus = Object.fromEntries(ESTATUS.map((e) => [e, (est.rows.find((x) => x.estatus === e) || { n: 0 }).n]));
   const nt = Object.fromEntries(notif.rows.map((x) => [x.estado, x.n]));
@@ -58,10 +57,10 @@ router.get('/dashboard', wrap(async (req, res) => {
     ventas_7_dias: serie.rows.map((x) => ({ fecha: x.fecha, pedidos: x.pedidos, ventas: r2(x.ventas) })),
     notificaciones: { fallidas: nt.fallida || 0, con_error: nt.error || 0, pendientes: nt.pendiente || 0 },
     pedidos_proveedor_por_recibir: ppx.rows[0].n,
+    decisiones: { total: dec.rows[0] ? dec.rows[0].total : 0, ultima: dec.rows[0] ? { id: dec.rows[0].id, titulo: dec.rows[0].titulo, alternativa: dec.rows[0].alternativa, base: dec.rows[0].base, creado_en: dec.rows[0].creado_en, usuario: dec.rows[0].usuario } : null },
     pagos_en_revision: rev.rows.length, pagos_revision: rev.rows.map((x) => ({ ...x, total: Number(x.total) })) });
 }));
 
-/* Ventas por periodo: ventas, costo de insumos y utilidad bruta */
 router.get('/ventas', wrap(async (req, res) => {
   const rg = rango(req, res); if (!rg) return;
   const agrupar = req.query.agrupar || 'dia';
@@ -85,7 +84,6 @@ router.get('/ventas', wrap(async (req, res) => {
   res.json({ ...rg, agrupar, periodos, totales, top_productos: top });
 }));
 
-/* Pedidos por estatus (de los pedidos hechos en el rango) */
 router.get('/estatus', wrap(async (req, res) => {
   const rg = rango(req, res); if (!rg) return;
   const { rows } = await db.query(`SELECT p.estatus, count(*)::int AS n FROM pedidos p WHERE ${FECHA} BETWEEN $1 AND $2 GROUP BY p.estatus`, [rg.desde, rg.hasta]);
@@ -95,7 +93,25 @@ router.get('/estatus', wrap(async (req, res) => {
   res.json({ ...rg, estatus, total });
 }));
 
-/* Existencias de inventario y su valor */
+router.get('/decisiones', wrap(async (req, res) => {
+  const rg = rango(req, res); if (!rg) return;
+  const { rows } = await db.query(
+    `SELECT d.id,d.titulo,d.alternativa,d.base,d.notas,d.resultados,d.creado_en,u.nombre AS usuario
+       FROM decisiones d LEFT JOIN usuarios u ON u.id=d.usuario_id
+      WHERE (d.creado_en AT TIME ZONE ${TZ})::date BETWEEN $1 AND $2 ORDER BY d.creado_en DESC, d.id DESC`, [rg.desde, rg.hasta]);
+  const decisiones = rows.map((x) => {
+    const c = x.resultados && x.resultados.consenso;
+    return { id: x.id, fecha: x.creado_en, titulo: x.titulo, alternativa: x.alternativa, base: x.base, usuario: x.usuario, notas: x.notas,
+      coincide_con_consenso: c ? c.ganadora === x.alternativa : null, consenso: c ? c.ganadora : null };
+  });
+  const porBase = Object.entries(decisiones.reduce((a, x) => { a[x.base] = (a[x.base] || 0) + 1; return a; }, {})).map(([base, n]) => ({ base, decisiones: n }));
+  const siguieron = decisiones.filter((x) => x.coincide_con_consenso === true).length;
+  if (req.query.formato === 'csv')
+    return csv(res, `decisiones-${rg.desde}-a-${rg.hasta}`, ['Fecha', 'Tema', 'Alternativa elegida', 'Basada en', 'Consenso recomendaba', 'Registro', 'Notas'],
+      decisiones.map((x) => [new Date(x.fecha).toLocaleString('es-MX', { timeZone: 'America/Mexico_City' }), x.titulo, x.alternativa, x.base, x.consenso || '', x.usuario || '', x.notas || '']));
+  res.json({ ...rg, decisiones, total: decisiones.length, siguieron_consenso: siguieron, por_base: porBase });
+}));
+
 router.get('/existencias', wrap(async (req, res) => {
   const { rows } = await db.query('SELECT nombre,unidad,stock,stock_minimo,costo_unitario FROM insumos WHERE activo ORDER BY nombre');
   const insumos = rows.map((x) => ({ nombre: x.nombre, unidad: x.unidad, stock: Number(x.stock), stock_minimo: Number(x.stock_minimo), costo_unitario: Number(x.costo_unitario),

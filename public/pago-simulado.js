@@ -1,7 +1,7 @@
 const $ = (s) => document.querySelector(s);
 const id = new URLSearchParams(location.search).get('checkout');
 let token = null;
-try { token = sessionStorage.getItem('t'); } catch (e) { /* sin almacenamiento */ }
+try { token = sessionStorage.getItem('t'); } catch (e) {  }
 async function api(path, method = 'GET') {
   const r = await fetch('/api' + path, { method, headers: { Authorization: 'Bearer ' + token } });
   const j = await r.json().catch(() => ({}));

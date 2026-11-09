@@ -1,6 +1,3 @@
-// Pruebas del Sprint 5 (tablero de cocina, estatus, notificaciones por correo, dashboard y reportes).
-// Úsalas SOLO en tu base de desarrollo: crean datos de prueba y, al final, los borran y restauran el inventario.
-//   npm run db:init && npm run test:sprint5      (requiere SEED_PASSWORD en .env; no necesita el servidor encendido)
 const http = require('http');
 const { execFileSync } = require('child_process');
 const { SMTPServer } = require('smtp-server');
@@ -18,7 +15,7 @@ const B = `http://localhost:${server.address().port}`;
 async function call(m, p, body, tok) {
   const r = await fetch(B + p, { method: m, headers: { 'Content-Type': 'application/json', ...(tok ? { Authorization: 'Bearer ' + tok } : {}) }, body: body === undefined ? undefined : JSON.stringify(body) });
   const tipo = r.headers.get('content-type') || '';
-  let j = {}; let texto = ''; try { texto = Buffer.from(await r.arrayBuffer()).toString('utf8'); if (tipo.includes('json')) j = JSON.parse(texto); } catch (e) { /* sin cuerpo */ }
+  let j = {}; let texto = ''; try { texto = Buffer.from(await r.arrayBuffer()).toString('utf8'); if (tipo.includes('json')) j = JSON.parse(texto); } catch (e) {  }
   return { s: r.status, j, texto, tipo, h: r.headers };
 }
 const R = Date.now();
@@ -53,7 +50,6 @@ const mondayOf = (iso) => { const d = new Date(iso + 'T12:00:00Z'); d.setUTCDate
     const patch = (id, estatus, tok = cocina) => call('PATCH', `/api/cocina/pedidos/${id}/estatus`, { estatus }, tok);
     const tablero = async (f, tok = cocina) => (await call('GET', `/api/cocina/pedidos?fecha=${f}`, undefined, tok)).j;
 
-    /* ===== Permisos ===== */
     let r = await call('GET', '/api/cocina/pedidos'); t('cocina: sin sesión → 401', r.s === 401);
     r = await call('GET', '/api/cocina/pedidos', undefined, A.token); t('cocina: un cliente → 403', r.s === 403);
     r = await call('GET', '/api/cocina/pedidos', undefined, almacen); t('cocina: el encargado de almacén → 403', r.s === 403);
@@ -63,7 +59,6 @@ const mondayOf = (iso) => { const d = new Date(iso + 'T12:00:00Z'); d.setUTCDate
     r = await call('GET', '/api/reportes/dashboard'); t('reportes: sin sesión → 401', r.s === 401);
     r = await call('GET', '/api/notificaciones', undefined, cocina); t('notificaciones: cocina → 403', r.s === 403);
 
-    /* ===== Tablero de cocina ===== */
     const o1 = await comprar(A, [{ producto_id: P('Cupcake'), cantidad: 6 }, { producto_id: P('Café latte'), cantidad: 2 }], D, '14:00', 'Feliz cumpleaños');
     const o2 = await comprar(Bc, [{ producto_id: P('Galleta'), cantidad: 4 }], D, '09:00');
     const o3 = await comprar(A, [{ producto_id: P('Brownie'), cantidad: 2 }], D, '12:00');
@@ -85,7 +80,6 @@ const mondayOf = (iso) => { const d = new Date(iso + 'T12:00:00Z'); d.setUTCDate
     r = await call('GET', `/api/cocina/pedidos/${o2}`, undefined, cocina); t('ficha individual de un pedido', r.s === 200 && r.j.pedido.id === o2 && r.j.pedido.ingredientes.length === 3);
     r = await call('GET', '/api/cocina/pedidos/999999', undefined, cocina); t('ficha de un pedido inexistente → 404', r.s === 404);
 
-    /* ===== Estatus: solo hacia adelante, de uno en uno ===== */
     r = await patch(o2, 'Listo para entrega'); t('saltar de Pendiente a Listo → 409 y no cambia', r.s === 409 && /En preparación/.test(r.j.error) && (await q('SELECT estatus FROM pedidos WHERE id=$1', [o2]))[0].estatus === 'Pendiente', r.j.error);
     r = await patch(o2, 'Entregado'); t('saltar de Pendiente a Entregado → 409', r.s === 409);
     r = await patch(o2, 'Pendiente'); t('regresar a Pendiente → 409', r.s === 409);
@@ -111,7 +105,6 @@ const mondayOf = (iso) => { const d = new Date(iso + 'T12:00:00Z'); d.setUTCDate
     r = await call('GET', '/api/pedidos', undefined, Bc.token); t('Mis pedidos también trae el historial', r.j.pedidos.find((x) => x.id === o2).historial.length === 4);
     const tb2 = await tablero(D); t('el tablero refleja los estatus nuevos', tb2.resumen.Entregado === 1 && tb2.resumen['En preparación'] === 2 && tb2.resumen.Pendiente === 1, JSON.stringify(tb2.resumen));
 
-    /* ===== Correos ===== */
     await drenar();
     const aB = enviados.filter((m) => m.a === Bc.correo);
     const asuntos = aB.map((m) => m.asunto);
@@ -149,7 +142,6 @@ const mondayOf = (iso) => { const d = new Date(iso + 'T12:00:00Z'); d.setUTCDate
     r = await call('POST', `/api/notificaciones/${nid}/reintentar`, undefined, admin); t('reintentar una ya enviada → 409', r.s === 409);
     r = await call('POST', '/api/notificaciones/abc/reintentar', undefined, admin); t('reintentar con identificador inválido → 400', r.s === 400);
 
-    // Un solo envío por correo aunque varios procesos trabajen a la vez
     enviados.length = 0; modo.demora = 40;
     for (let i = 0; i < 6; i++) await db.query("INSERT INTO notificaciones(pedido_id,cliente_id,plantilla,destinatario,asunto,cuerpo_texto,cuerpo_html) VALUES($1,$2,$3,$4,$5,'x','x')", [o2, Bc.id, 'conc-' + i, `conc${i}@prueba.test`, 'Concurrencia ' + i]);
     await Promise.all([notif.enviarPendientes(), notif.enviarPendientes(), notif.enviarPendientes()]);
@@ -162,7 +154,6 @@ const mondayOf = (iso) => { const d = new Date(iso + 'T12:00:00Z'); d.setUTCDate
     enviados.length = 0; await notif.enviarPendientes();
     t('rescata un envío atascado (más de 5 min) pero respeta uno en curso', enviados.length === 1 && enviados[0].asunto === 'Concurrencia 0' && (await q('SELECT estado FROM notificaciones WHERE id=$1', [x2]))[0].estado === 'enviando');
 
-    // Configuración del servidor
     const arranca = (env) => { try { execFileSync('node', ['-e', "require('./src/config')"], { env: { ...process.env, ...env }, stdio: 'pipe' }); return true; } catch (e) { return String(e.stderr); } };
     t('producción con correo simulado: el servidor se niega a arrancar', /producción/.test(arranca({ NODE_ENV: 'production', MAIL_PROVIDER: 'consola', PAYMENT_PROVIDER: 'stripe', STRIPE_SECRET_KEY: 'sk_test_x', STRIPE_WEBHOOK_SECRET: 'whsec_x' })));
     t('smtp sin servidor configurado: se niega a arrancar', /SMTP_HOST/.test(arranca({ MAIL_PROVIDER: 'smtp', SMTP_HOST: '', MAIL_FROM: '' })));
@@ -170,7 +161,6 @@ const mondayOf = (iso) => { const d = new Date(iso + 'T12:00:00Z'); d.setUTCDate
     t('proveedor de correo desconocido: se niega a arrancar', /MAIL_PROVIDER/.test(arranca({ MAIL_PROVIDER: 'palomas' })));
     t('configuración smtp completa: arranca', arranca({ MAIL_PROVIDER: 'smtp', SMTP_HOST: 'localhost', MAIL_FROM: 'a@b.c' }) === true);
 
-    // SMTP REAL contra un servidor local (verifica el envío de verdad, con acentos, HTML y autenticación)
     const recibidos = [];
     const smtp = new SMTPServer({ authOptional: false, allowInsecureAuth: true, disabledCommands: ['STARTTLS'],
       onAuth(auth, s, cb) { auth.username === 'usuario' && auth.password === 'clave-buena' ? cb(null, { user: 1 }) : cb(new Error('Credenciales inválidas')); },
@@ -190,7 +180,6 @@ const mondayOf = (iso) => { const d = new Date(iso + 'T12:00:00Z'); d.setUTCDate
     t('SMTP real: un cambio de estatus llega por correo', pCocina.s === 200 && recibidos.some((m) => /en preparación/.test(m.subject)));
     delete process.env.SMTP_USER; delete process.env.SMTP_PASS;
 
-    // API HTTPS (Resend) contra un servidor local
     const pet = []; let codigo = 200;
     const web = http.createServer((req, res) => { let b = ''; req.on('data', (d) => { b += d; }); req.on('end', () => { pet.push({ auth: req.headers.authorization, ct: req.headers['content-type'], cuerpo: JSON.parse(b) }); res.statusCode = codigo; res.end(codigo === 200 ? '{"id":"1"}' : '{"error":"dominio no verificado"}'); }); });
     await new Promise((ok) => web.listen(0, '127.0.0.1', ok)); servidores.push(web);
@@ -203,7 +192,6 @@ const mondayOf = (iso) => { const d = new Date(iso + 'T12:00:00Z'); d.setUTCDate
     t('Resend: manda la llave, el JSON y el destinatario correctos', ult.auth === 'Bearer re_prueba' && /json/.test(ult.ct) && ult.cuerpo.to[0] === A.correo && /listo para entrega/.test(ult.cuerpo.subject) && ult.cuerpo.from.includes('avisos@encombo.test') && ult.cuerpo.html && ult.cuerpo.text);
     delete process.env.MAIL_API_URL; delete process.env.RESEND_API_KEY; process.env.MAIL_PROVIDER = 'consola'; mail.reemplazar(mock);
 
-    /* ===== Dashboard ===== */
     const hoy = svc.todayMX();
     const oHoy = (await q("INSERT INTO pedidos(cliente_id,presentacion_id,fecha_entrega,hora_entrega,total,estatus) VALUES($1,$2,$3,'10:00',123.45,'Pendiente') RETURNING id", [Rep.id, base.presentacion_id, hoy]))[0].id;
     const chk = (await call('POST', '/api/pedidos/checkout', { items: [{ producto_id: P('Galleta'), cantidad: 1 }], presentacion_id: PRES, fecha: svc.addDays(D, 2), hora: '10:00', direccion: { cp: '91190', colonia: 'Las Flores', calle: 'Calle de Prueba', num_ext: '12' } }, Rep.token)).j.checkout_id;
@@ -220,7 +208,6 @@ const mondayOf = (iso) => { const d = new Date(iso + 'T12:00:00Z'); d.setUTCDate
     t('dashboard: avisos con error', dsh.notificaciones.fallidas === (await sq("SELECT count(*)::int n FROM notificaciones WHERE estado='fallida'")).n);
     t('dashboard: pagos en revisión (cobrados pero sin pedido) con cliente y referencia', dsh.pagos_en_revision >= 1 && dsh.pagos_revision[0].cliente === 'Cliente Reportes' && dsh.pagos_revision[0].referencia === 'sim_rev_' + R);
 
-    /* ===== Reportes ===== */
     const m0 = new Date(); m0.setUTCDate(1); m0.setUTCMonth(m0.getUTCMonth() - 3);
     const M1 = m0.toISOString().slice(0, 10), mN = new Date(m0); mN.setUTCMonth(mN.getUTCMonth() + 1);
     const M2 = mN.toISOString().slice(0, 10), d2 = svc.addDays(M1, 1), d3 = svc.addDays(M1, 8);
@@ -232,7 +219,7 @@ const mondayOf = (iso) => { const d = new Date(iso + 'T12:00:00Z'); d.setUTCDate
       return id;
     };
     await ped(`${M1} 12:00-06`, 100, 'Entregado', 4);
-    await ped(`${d2} 23:30-06`, 250.5, 'Pendiente', 10);   // en UTC ya es el día siguiente: debe contarse el día de México
+    await ped(`${d2} 23:30-06`, 250.5, 'Pendiente', 10);
     await ped(`${d3} 00:15-06`, 80, 'Listo para entrega', 3);
     await ped(`${M2} 09:00-06`, 300, 'Entregado', 12);
     r = await call('GET', `/api/reportes/ventas?desde=${M1}&hasta=${M2}&agrupar=dia`, undefined, admin); const vd = r.j;

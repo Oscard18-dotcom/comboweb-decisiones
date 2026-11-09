@@ -6,12 +6,10 @@ const compras = require('../services/compras');
 
 router.use(auth, roles('admin'));
 
-// Errores "de negocio" del servicio: se muestran tal cual; los demás van al manejador global
 const manejar = (fn) => wrap(async (req, res) => {
   try { await fn(req, res); } catch (e) { if (e.publico) return res.status(e.status).json({ error: e.publico }); throw e; }
 });
 
-/* Sugerencias de reposición: insumos en reorden (stock <= mínimo). Si el proveedor tiene lista de insumos, solo esos. */
 router.get('/sugerencias', manejar(async (req, res) => {
   const pid = req.query.proveedor_id === undefined ? null : Number.parseInt(req.query.proveedor_id, 10);
   if (req.query.proveedor_id !== undefined && (!Number.isInteger(pid) || pid <= 0)) return res.status(400).json({ error: 'Proveedor inválido.' });

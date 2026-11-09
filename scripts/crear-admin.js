@@ -1,6 +1,3 @@
-// Crea el primer administrador del sistema (o restablece su contraseña con --reiniciar).
-//   ADMIN_EMAIL=dueña@tudominio.com ADMIN_NAME="Nombre Apellido" ADMIN_PASSWORD="una-clave-larga" npm run crear-admin
-//   (para restablecer la clave de un administrador existente, agrega:  -- --reiniciar)
 require('../src/config');
 const bcrypt = require('bcryptjs');
 const { pool } = require('../src/db');

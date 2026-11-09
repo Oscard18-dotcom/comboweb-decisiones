@@ -1,15 +1,12 @@
-// Administración (Sprint 6): usuarios del sistema y catálogo de precios
 (() => {
   const costo = (n) => Number(n).toLocaleString('es-MX', { style: 'currency', currency: 'MXN' });
   const ROL = { cliente: 'Cliente', cocina: 'Cocina', almacen: 'Almacén', admin: 'Administrador' };
-  // Contraseña temporal aleatoria (con el generador criptográfico del navegador)
   function generar() {
     const abc = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789', n = new Uint32Array(12);
     if (window.crypto && window.crypto.getRandomValues) window.crypto.getRandomValues(n); else n.forEach((_, i) => { n[i] = Math.floor(Math.random() * 4294967295); });
     return Array.from(n, (x) => abc[x % abc.length]).join('') + '-7';
   }
 
-  /* ---------- Usuarios ---------- */
   Personal.registrar('usr', 'Usuarios', ['admin'], 6, (cont, H) => {
     const { e, api, campo, enviar, chipC } = H;
     let lista = [], verClientes = false, filtro = '';
@@ -69,7 +66,6 @@
     cargar();
   });
 
-  /* ---------- Catálogo y precios ---------- */
   Personal.registrar('cat', 'Catálogo y precios', ['admin'], 4.5, (cont, H) => {
     const { e, api, chipC } = H;
     const err = e('div', { class: 'errbox', role: 'alert' }), msg = e('p', { class: 'okmsg', role: 'status' }), prods = e('div', { class: 'card tw' }), pres = e('div', { class: 'card tw' });

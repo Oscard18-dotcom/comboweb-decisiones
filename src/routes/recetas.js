@@ -19,7 +19,6 @@ const fmt = (r) => {
 };
 const uno = async (q, id) => { const { rows } = await q.query(SEL + ' WHERE r.id=$1 GROUP BY r.id, p.id', [id]); return rows[0] ? fmt(rows[0]) : null; };
 
-// Valida el cuerpo antes de tocar la base de datos: si algo está mal, la receta anterior queda intacta
 function validar(b = {}) {
   const rinde = b.rinde === undefined ? 1 : Number(b.rinde);
   if (!Number.isInteger(rinde) || rinde < 1 || rinde > 1000) return { error: 'El rinde debe ser un número entero entre 1 y 1000.' };

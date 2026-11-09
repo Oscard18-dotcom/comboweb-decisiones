@@ -1,4 +1,3 @@
-// Pasarela real: Stripe Checkout (página de pago alojada por Stripe: nunca tocamos datos de tarjeta).
 let cliente = null;
 const sdk = () => {
   if (!process.env.STRIPE_SECRET_KEY) throw new Error('Falta STRIPE_SECRET_KEY');
@@ -16,11 +15,10 @@ module.exports = {
       line_items: [{ quantity: 1, price_data: { currency: 'mxn', unit_amount: Math.round(total * 100), product_data: { name: 'Pedido EN COMBO' } } }],
       success_url: `${base()}/?checkout=${checkoutId}`,
       cancel_url: `${base()}/?cancelado=${checkoutId}`,
-      expires_at: Math.floor(Date.now() / 1000) + 31 * 60, // Stripe exige mínimo 30 min
+      expires_at: Math.floor(Date.now() / 1000) + 31 * 60,
     }, { idempotencyKey: 'checkout_' + checkoutId });
     return { url: s.url, referencia: s.id };
   },
-  // Verifica la firma del webhook con el cuerpo SIN modificar (Buffer)
   verificarEvento(cuerpoCrudo, firma) {
     if (!process.env.STRIPE_WEBHOOK_SECRET) throw new Error('Falta STRIPE_WEBHOOK_SECRET');
     return sdk().webhooks.constructEvent(cuerpoCrudo, firma, process.env.STRIPE_WEBHOOK_SECRET);

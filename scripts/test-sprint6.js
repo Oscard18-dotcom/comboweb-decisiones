@@ -1,7 +1,4 @@
-// Pruebas del Sprint 6: seguridad de cuentas, permisos de TODAS las rutas, ataques comunes, carga simultánea y scripts de despliegue.
-// Úsalas SOLO en tu base de desarrollo: crean datos de prueba y, al final, los borran y restauran el inventario.
-//   npm run db:init && npm run test:sprint6      (requiere SEED_PASSWORD en .env; no necesita el servidor encendido)
-process.env.AUTH_RATE_LIMIT = '100000'; // el límite real se prueba aparte, en un servidor propio
+process.env.AUTH_RATE_LIMIT = '100000';
 const http = require('http');
 const path = require('path');
 const { spawn, execFileSync } = require('child_process');
@@ -18,7 +15,7 @@ const server = app.listen(0);
 const PORT = server.address().port, B = `http://localhost:${PORT}`;
 async function call(m, p, body, tok, headers = {}) {
   const r = await fetch(B + p, { method: m, headers: { 'Content-Type': 'application/json', ...(tok ? { Authorization: 'Bearer ' + tok } : {}), ...headers }, body: body === undefined ? undefined : (typeof body === 'string' ? body : JSON.stringify(body)) });
-  let j = {}; let texto = ''; try { texto = await r.text(); j = JSON.parse(texto); } catch (e) { /* sin JSON */ }
+  let j = {}; let texto = ''; try { texto = await r.text(); j = JSON.parse(texto); } catch (e) {  }
   return { s: r.status, j, texto, h: r.headers };
 }
 const R = Date.now();
@@ -27,7 +24,6 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const b64 = (o) => Buffer.from(JSON.stringify(o)).toString('base64url');
 const run = (args, env = {}) => { try { return { code: 0, out: String(execFileSync('node', args, { env: { ...process.env, ...env }, stdio: 'pipe', cwd: ROOT })) }; } catch (e) { return { code: e.status, out: String(e.stdout) + String(e.stderr) }; } };
 
-/* --- descubre TODAS las rutas del servidor (para que ninguna quede sin revisar) --- */
 function montaje(l) { const m = l.regexp.source.match(/^\^((?:\\\/[^\\?()]+)*)\\\/\?\(\?=\\\/\|\$\)$/); return m ? m[1].replace(/\\\//g, '/') : ''; }
 function rutas() {
   const out = [];
@@ -39,10 +35,10 @@ function rutas() {
   })(app._router.stack, '');
   return out;
 }
-const PUBLICAS = new Set(['GET /api/catalogo', 'GET /api/catalogo/codigo-postal/:cp', 'GET /api/pedidos/disponibilidad', 'POST /api/pedidos/cotizar', 'POST /api/auth/login', 'POST /api/auth/register', 'GET /api/salud', 'POST /api/pagos/webhook/stripe']);
+const PUBLICAS = new Set(['GET /api/catalogo', 'GET /api/catalogo/codigo-postal/:cp', 'GET /api/pedidos/disponibilidad', 'POST /api/pedidos/cotizar', 'POST /api/auth/login', 'POST /api/auth/register', 'POST /api/auth/olvide', 'POST /api/auth/restablecer', 'GET /api/salud', 'POST /api/pagos/webhook/stripe']);
 function clasifica(m, p) {
   if (PUBLICAS.has(`${m} ${p}`)) return { tipo: 'publica' };
-  if (['/api/admin', '/api/recetas', '/api/reportes', '/api/notificaciones', '/api/proveedores', '/api/pedidos-proveedor', '/api/decisiones'].some((x) => p.startsWith(x))) return { tipo: 'roles', roles: ['admin'] };
+  if (['/api/admin', '/api/recetas', '/api/reportes', '/api/notificaciones', '/api/proveedores', '/api/pedidos-proveedor', '/api/decisiones', '/api/warehouse'].some((x) => p.startsWith(x))) return { tipo: 'roles', roles: ['admin'] };
   if (p.startsWith('/api/inventario')) return { tipo: 'roles', roles: ['almacen', 'admin'] };
   if (p.startsWith('/api/cocina')) return { tipo: 'roles', roles: ['cocina', 'admin'] };
   if (p === '/api/pedidos/checkout' || p.startsWith('/api/pedidos/checkout/') || (m === 'GET' && p === '/api/pedidos') || p.startsWith('/api/pagos/simulado') || p.startsWith('/api/avisos')) return { tipo: 'roles', roles: ['cliente'] };
@@ -63,7 +59,6 @@ const concreta = (p) => p.replace('/checkout/:id', '/checkout/00000000-0000-4000
     const C = await reg('c6'), Otro = await reg('o6');
     const dia = (k) => svc.addDays(svc.todayMX(), 10 + (R % 40) + k);
 
-    /* ===== Cambio de contraseña ===== */
     const U = await reg('p6');
     let r = await call('POST', '/api/auth/cambiar-password', { actual: 'secreta123', nueva: 'otra-clave-123' }); t('cambiar contraseña sin sesión → 401', r.s === 401);
     r = await call('POST', '/api/auth/cambiar-password', { actual: 'secreta123', nueva: 'corta' }, U.token); t('contraseña nueva muy corta → 400', r.s === 400);
@@ -71,7 +66,7 @@ const concreta = (p) => p.replace('/checkout/:id', '/checkout/00000000-0000-4000
     r = await call('POST', '/api/auth/cambiar-password', { actual: 'secreta123', nueva: 'secreta123' }, U.token); t('la nueva igual a la actual → 400', r.s === 400);
     r = await call('POST', '/api/auth/cambiar-password', { actual: 'equivocada', nueva: 'otra-clave-123' }, U.token); t('contraseña actual incorrecta → 400 (no 401: no cierra la sesión)', r.s === 400 && /actual/.test(r.j.error));
     r = await call('POST', '/api/auth/cambiar-password', { nueva: 'otra-clave-123' }, U.token); t('sin la contraseña actual → 400', r.s === 400);
-    const sinVersion = jwt.sign({ id: U.id }, process.env.JWT_SECRET); // token del formato anterior (sin versión)
+    const sinVersion = jwt.sign({ id: U.id }, process.env.JWT_SECRET);
     t('un token anterior al Sprint 6 (sin versión) sigue valiendo mientras no cambie la contraseña', (await call('GET', '/api/auth/me', undefined, sinVersion)).s === 200);
     r = await call('POST', '/api/auth/cambiar-password', { actual: 'secreta123', nueva: 'otra-clave-123' }, U.token);
     t('cambio correcto: devuelve una sesión nueva', r.s === 200 && r.j.ok && r.j.token && r.j.token !== U.token);
@@ -83,7 +78,6 @@ const concreta = (p) => p.replace('/checkout/:id', '/checkout/00000000-0000-4000
     t('la contraseña nueva entra', (await login(U.correo, 'otra-clave-123')).s === 200);
     t('la sesión de otra persona no se ve afectada', (await call('GET', '/api/auth/me', undefined, Otro.token)).s === 200);
     t('la contraseña no se guarda en claro ni viaja en ninguna respuesta', !(await q('SELECT password_hash FROM usuarios WHERE id=$1', [U.id]))[0].password_hash.includes('otra-clave') && !JSON.stringify((await call('GET', '/api/admin/usuarios', undefined, admin)).j).includes('password'));
-    // Restablecimiento por el administrador
     r = await call('PATCH', `/api/admin/usuarios/${U.id}/password`, { password: 'restablecida-99' }, almacen); t('restablecer contraseña: el almacén no puede → 403', r.s === 403);
     r = await call('PATCH', `/api/admin/usuarios/${U.id}/password`, { password: 'corta' }, admin); t('restablecer con contraseña corta → 400', r.s === 400);
     r = await call('PATCH', '/api/admin/usuarios/abc/password', { password: 'restablecida-99' }, admin); t('restablecer con id inválido → 400', r.s === 400);
@@ -92,7 +86,6 @@ const concreta = (p) => p.replace('/checkout/:id', '/checkout/00000000-0000-4000
     t('…y se cierran todas las sesiones de ese usuario', (await call('GET', '/api/auth/me', undefined, tokNuevo)).s === 401);
     t('…y entra con la contraseña restablecida', (await login(U.correo, 'restablecida-99')).s === 200);
 
-    /* ===== Tokens manipulados ===== */
     const valido = C.token, partes = valido.split('.');
     const casos = [['firmado con otra llave', jwt.sign({ id: C.id, v: 0 }, 'otra-llave-que-no-es-la-del-servidor-123456')], ['sin firma (alg none)', `${b64({ alg: 'none', typ: 'JWT' })}.${b64({ id: C.id, v: 0 })}.`],
       ['cuerpo alterado (otro id) con la firma original', `${partes[0]}.${b64({ id: 1, v: 0 })}.${partes[2]}`], ['expirado', jwt.sign({ id: C.id, v: 0, exp: Math.floor(Date.now() / 1000) - 60 }, process.env.JWT_SECRET)],
@@ -102,7 +95,6 @@ const concreta = (p) => p.replace('/checkout/:id', '/checkout/00000000-0000-4000
     const del = await reg('d6'); await db.query('UPDATE usuarios SET activo=false WHERE id=$1', [del.id]);
     t('el token de un usuario dado de baja → 401', (await call('GET', '/api/auth/me', undefined, del.token)).s === 401);
 
-    /* ===== Salud, cabeceras y archivos expuestos ===== */
     r = await call('GET', '/api/salud'); t('/api/salud responde ok sin sesión y sin detalles internos', r.s === 200 && r.j.estado === 'ok' && r.j.version && !/postgres|password|secret/i.test(r.texto));
     r = await call('GET', '/api/catalogo', undefined, undefined, { Origin: 'https://sitio-malicioso.example' });
     t('no hay CORS: ningún otro sitio puede leer la API desde el navegador', !r.h.get('access-control-allow-origin'));
@@ -121,7 +113,6 @@ const concreta = (p) => p.replace('/checkout/:id', '/checkout/00000000-0000-4000
     const idsC = await q('SELECT id FROM usuarios WHERE correo=$1', [`carrera${R}@prueba.test`]); idsC.forEach((x) => clientes.push(x.id));
     t('3 registros simultáneos del mismo correo: uno se crea y dos se rechazan', dup.filter((x) => x.s === 201).length === 1 && dup.filter((x) => x.s === 409).length === 2 && idsC.length === 1);
 
-    /* ===== Barrido de permisos: TODAS las rutas × todos los roles ===== */
     const todas = rutas();
     t(`se descubrieron las rutas del servidor (${todas.length})`, todas.length >= 40, String(todas.length));
     const sinClasificar = todas.filter(([m, p]) => !clasifica(m, p));
@@ -146,7 +137,6 @@ const concreta = (p) => p.replace('/checkout/:id', '/checkout/00000000-0000-4000
     }
     t('la tabla de insumos sigue intacta tras el barrido (ningún DELETE destructivo)', (await q('SELECT count(*)::int n FROM insumos'))[0].n === insumos0.length);
 
-    /* ===== Carga simultánea (detecta conexiones agotadas o bloqueos) ===== */
     const cat = (await call('GET', '/api/catalogo')).j; const P = (n) => cat.productos.find((p) => p.nombre === n).id; const PRES = cat.presentaciones.find((p) => p.nombre === 'Caja mediana').id;
     const combo = (o = {}) => ({ items: [{ producto_id: P('Cupcake'), cantidad: 2 }], presentacion_id: PRES, fecha: dia(0), hora: '12:00', direccion: { cp: '91190', colonia: 'Las Flores', calle: 'Calle de Prueba', num_ext: '12' }, ...o });
     const t0 = Date.now();
@@ -166,7 +156,6 @@ const concreta = (p) => p.replace('/checkout/:id', '/checkout/00000000-0000-4000
     const h2 = Number((await q('SELECT stock FROM insumos WHERE id=$1', [harina.id]))[0].stock);
     t('40 movimientos de inventario simultáneos: se aplican los 40, ninguno se pierde', Math.abs(h2 - (Number(harina.stock) + 40)) < 1e-6, `${h2} vs ${Number(harina.stock) + 40}`);
 
-    /* ===== Scripts de despliegue ===== */
     const ADM = `adm6${R}@prueba.test`; clientes.push(0);
     let x = run(['scripts/crear-admin.js'], { ADMIN_EMAIL: ADM, ADMIN_NAME: 'Admin Prueba', ADMIN_PASSWORD: 'clave-de-admin-1' });
     t('crear-admin: crea el administrador', x.code === 0 && /Administrador creado/.test(x.out));
@@ -188,7 +177,6 @@ const concreta = (p) => p.replace('/checkout/:id', '/checkout/00000000-0000-4000
     x = run(['scripts/verificar-despliegue.js'], { ...prod, PUBLIC_URL: 'http://demo.example.com' }); t('verificar: PUBLIC_URL sin https en producción es un error', x.code === 1 && /✖ PUBLIC_URL no usa https/.test(x.out));
     x = run(['scripts/verificar-despliegue.js'], { ...prod, MAIL_PROVIDER: 'consola' }); t('verificar: correo simulado en producción es un error', x.code === 1 && /✖/.test(x.out));
 
-    /* ===== El servidor real: arranque, salud, límite de intentos y apagado ordenado ===== */
     const puerto = 3300 + (R % 600);
     const hijo = spawn('node', ['src/server.js'], { cwd: ROOT, env: { ...process.env, PORT: String(puerto), AUTH_RATE_LIMIT: '', MAIL_PROVIDER: 'consola' } }); hijos.push(hijo);
     let salida = ''; hijo.stdout.on('data', (d) => { salida += d; }); hijo.stderr.on('data', (d) => { salida += d; });
@@ -206,7 +194,7 @@ const concreta = (p) => p.replace('/checkout/:id', '/checkout/00000000-0000-4000
     fail++; console.log('FAIL error inesperado:', e);
   } finally {
     try {
-      for (const h of hijos) { try { h.kill('SIGKILL'); } catch (e) { /* ya terminó */ } }
+      for (const h of hijos) { try { h.kill('SIGKILL'); } catch (e) {  } }
       mail.reemplazar(null);
       const ids = clientes.filter(Boolean);
       await db.query("DELETE FROM usuarios WHERE correo = $1", [`adm6${R}@prueba.test`]).catch(() => {});

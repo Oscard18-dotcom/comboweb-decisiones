@@ -1,5 +1,3 @@
-// Dirección de entrega: validación y catálogo de códigos postales de Veracruz (SEPOMEX, 2 349 códigos).
-// El catálogo se carga una sola vez; el servidor es quien decide el municipio y comprueba que la colonia pertenezca al código postal.
 const CATALOGO = require('../data/cp-veracruz.json');
 
 const limpiar = (v, max) => (typeof v === 'string' ? v.replace(/[\u0000-\u001F\u007F]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, max + 1) : '');
@@ -31,7 +29,6 @@ function validar(b) {
       else if (!hallada) err('colonia', 'Esa colonia no pertenece a ese código postal. Elige una de la lista.');
       else colonia = hallada;
     } else {
-      // Código fuera del catálogo: se aceptan los datos escritos a mano
       municipio = limpiar(b.municipio, 80);
       if (!colonia) err('colonia', 'Escribe tu colonia.');
       if (!municipio) err('municipio', 'Escribe tu municipio o ciudad.');
@@ -49,12 +46,10 @@ function validar(b) {
   return { errores, dir: { cp, colonia, calle, num_ext: ext, num_int: int || null, municipio, estado, referencias: ref || null } };
 }
 
-// Texto de una línea para correos y pantallas
 function texto(d) {
   if (!d || !d.calle) return null;
   return `${d.calle} ${d.num_ext}${d.num_int ? ' int. ' + d.num_int : ''}, Col. ${d.colonia}, C.P. ${d.cp}, ${d.municipio}${d.estado ? ', ' + d.estado : ''}`;
 }
-// Convierte las columnas dir_* de un pedido en un objeto (o null si es un pedido anterior sin dirección)
 function desdeFila(r) {
   if (!r || !r.dir_calle) return null;
   const d = { cp: r.dir_cp, colonia: r.dir_colonia, calle: r.dir_calle, num_ext: r.dir_num_ext, num_int: r.dir_num_int, municipio: r.dir_municipio, estado: r.dir_estado, referencias: r.dir_referencias };

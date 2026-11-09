@@ -1,4 +1,3 @@
-// Correo real por API HTTPS (Resend). Útil si tu hosting bloquea el puerto SMTP.
 module.exports = {
   nombre: 'resend',
   async enviar({ a, asunto, texto, html, responderA }) {

@@ -12,7 +12,6 @@ const SEL = `SELECT p.id,p.nombre,p.correo,p.contacto,p.telefono,p.notas,p.activ
   FROM proveedores p`;
 const uno = async (q, id) => (await q.query(SEL + ' WHERE p.id=$1', [id])).rows[0] || null;
 
-// Valida y limpia los campos. Devuelve { error } o { v }
 function validar(b, parcial) {
   const v = {};
   if (!parcial || b.nombre !== undefined) { if (!isText(b.nombre, 2, 80)) return { error: 'El nombre del proveedor debe tener entre 2 y 80 caracteres.' }; v.nombre = b.nombre.trim(); }
@@ -81,8 +80,6 @@ router.put('/:id', wrap(async (req, res) => {
   } catch (e) { await c.query('ROLLBACK').catch(() => {}); if (e.code === '23505') return dup(res); throw e; } finally { c.release(); }
 }));
 
-/* Eliminar: si ya tiene pedidos se ARCHIVA (se conserva el historial); si es nuevo se borra de verdad.
-   No se puede eliminar mientras tenga un pedido enviado sin recibir. */
 router.delete('/:id', wrap(async (req, res) => {
   const id = paramId(req);
   if (!id) return res.status(400).json({ error: 'Identificador inválido.' });

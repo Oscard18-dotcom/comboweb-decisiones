@@ -1,4 +1,3 @@
-// Toma de decisiones del administrador: casos de ejemplo, evaluación con 6 criterios, exportación y registro de decisiones.
 const router = require('express').Router();
 const rateLimit = require('express-rate-limit');
 const db = require('../db');
@@ -9,23 +8,48 @@ const svc = require('../services/decisiones');
 router.use(auth, roles('admin'));
 router.use(rateLimit({ windowMs: 15 * 60 * 1000, limit: 600, standardHeaders: true, legacyHeaders: false, message: { error: 'Demasiadas consultas. Intenta de nuevo en unos minutos.' } }));
 
-router.get('/casos', (req, res) => res.json({ casos: svc.casos(), criterios: svc.CRITERIOS.map(({ clave, nombre, tipo, idea }) => ({ clave, nombre, tipo, idea })) }));
+async function casosConDatos() {
+  const guardados = Object.fromEntries((await db.query('SELECT caso_id,pagos,probabilidades,alfa,actualizado_en FROM decision_datos')).rows.map((r) => [r.caso_id, r]));
+  return svc.casos().map((c) => {
+    const g = guardados[c.id];
+    if (!g || g.pagos.length !== c.alternativas.length) return { ...c, guardado: false, alfa: 0.6 };
+    return { ...c, guardado: true, actualizado_en: g.actualizado_en, alfa: Number(g.alfa), probabilidades: g.probabilidades,
+      alternativas: c.alternativas.map((a, i) => ({ ...a, pagos: g.pagos[i] })) };
+  });
+}
+router.get('/casos', wrap(async (req, res) => res.json({ casos: await casosConDatos(), criterios: svc.CRITERIOS.map(({ clave, nombre, tipo, idea }) => ({ clave, nombre, tipo, idea })) })));
 
-// Calcula los 6 criterios para la matriz que se está editando (no guarda nada)
+router.put('/casos/:id', wrap(async (req, res) => {
+  const caso = /^[a-z0-9-]{1,40}$/.test(req.params.id) ? svc.caso(req.params.id) : null;
+  if (!caso) return res.status(404).json({ error: 'Ese tipo de decisión no existe.' });
+  const b = req.body || {};
+  const ev = svc.evaluar({ alternativas: caso.alternativas.map((a) => a.nombre), escenarios: caso.escenarios, pagos: b.pagos, probabilidades: b.probabilidades, alfa: b.alfa });
+  if (ev.error) return res.status(400).json({ error: ev.error });
+  const pagos = ev.alternativas.map((_, i) => b.pagos[i].map(Number));
+  await db.query(`INSERT INTO decision_datos(caso_id,pagos,probabilidades,alfa,usuario_id) VALUES($1,$2,$3,$4,$5)
+    ON CONFLICT (caso_id) DO UPDATE SET pagos=$2, probabilidades=$3, alfa=$4, usuario_id=$5, actualizado_en=now()`,
+  [caso.id, JSON.stringify(pagos), JSON.stringify(ev.probabilidades), ev.alfa, req.user.id]);
+  res.json({ ok: true });
+}));
+
+router.delete('/casos/:id', wrap(async (req, res) => {
+  if (!/^[a-z0-9-]{1,40}$/.test(req.params.id)) return res.status(404).json({ error: 'Ese tipo de decisión no existe.' });
+  await db.query('DELETE FROM decision_datos WHERE caso_id=$1', [req.params.id]);
+  res.json({ ok: true });
+}));
+
 router.post('/evaluar', (req, res) => {
   const r = svc.evaluar(req.body);
   if (r.error) return res.status(400).json({ error: r.error });
   res.json({ evaluacion: r });
 });
 
-// Devuelve los dos archivos CSV (matriz y resultados) para Power BI / Excel
 router.post('/exportar', (req, res) => {
   const r = svc.exportar(req.body, (req.body || {}).titulo);
   if (r.error) return res.status(400).json({ error: r.error });
   res.json(r);
 });
 
-// Registra la decisión tomada. El servidor vuelve a evaluar la matriz: lo que se guarda nunca depende de resultados enviados por el navegador.
 router.post('/', wrap(async (req, res) => {
   const b = req.body || {};
   const caso = typeof b.caso_id === 'string' && /^[a-z0-9-]{1,40}$/.test(b.caso_id) ? b.caso_id : null;

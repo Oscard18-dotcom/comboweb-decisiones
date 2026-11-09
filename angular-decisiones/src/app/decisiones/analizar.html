@@ -1,0 +1,148 @@
+@if (cargando()) { <p class="mu" role="status">Cargando…</p> }
+@if (error() && !caso()) { <p class="err" role="alert">{{ error() }}</p> }
+
+@if (caso(); as c) {
+  <div class="casos" role="tablist" aria-label="Tipo de decisión">
+    @for (k of casos(); track k.id) {
+      <button type="button" role="tab" [class.on]="k.id === casoId()" [attr.aria-selected]="k.id === casoId()" [attr.data-caso]="k.id" (click)="abrir(k.id)">{{ k.titulo }}</button>
+    }
+  </div>
+
+  <section class="card planteamiento">
+    <p class="rotulo">Planteamiento</p>
+    <h2 class="pregunta">{{ c.pregunta }}</h2>
+    <p><span class="et">Origen de los pagos</span> {{ c.origen }}</p>
+    <p class="mu">Los pagos están en {{ c.unidad }}. Modifica cualquier cifra de la matriz y los resultados se recalculan. Con “Guardar como mis datos” se conservan para la próxima vez.</p>
+    @if (c.guardado) { <p class="okmsg">Se usan los datos guardados el {{ fh(c.actualizado_en!) }}.</p> }
+    @else { <p class="mu">Se usan los datos de ejemplo.</p> }
+  </section>
+
+  @if (error()) { <p class="err" role="alert">{{ error() }}</p> }
+  @if (exito()) { <p class="okmsg" role="status">{{ exito() }}</p> }
+  @if (ev()?.advertencia; as av) { <p class="aviso" role="status">Nota: {{ av }}</p> }
+
+  <section class="card tw">
+    <p class="rotulo">Matriz de pagos</p>
+    <table class="dec-tabla">
+      <thead>
+        <tr>
+          <th>Alternativa</th><th>{{ c.columna_extra }}</th>
+          @for (x of c.escenarios; track x) { <th class="n">{{ x }}</th> }
+        </tr>
+      </thead>
+      <tbody>
+        @for (a of c.alternativas; track a.nombre; let i = $index) {
+          <tr>
+            <td><b>{{ a.nombre }}</b></td>
+            <td class="mu">{{ a.detalle }}</td>
+            @for (x of c.escenarios; track x; let j = $index) {
+              <td><input type="number" step="any" [value]="pagos()[i]?.[j]" [attr.aria-label]="'Pago de ' + a.nombre + ' con ' + x" (input)="setPago(i, j, $any($event.target).value)"></td>
+            }
+          </tr>
+        }
+        <tr class="fila-prob">
+          <td colspan="2"><b>Probabilidad del escenario</b><br><small class="mu">La usa solo el VME; debe sumar 1</small></td>
+          @for (x of c.escenarios; track x; let j = $index) {
+            <td><input type="number" step="0.01" [value]="prob()[j]" [attr.aria-label]="'Probabilidad de ' + x" (input)="setProb(j, $any($event.target).value)"></td>
+          }
+        </tr>
+      </tbody>
+    </table>
+    <div class="controles">
+      <label class="chk">Optimismo (Hurwicz)
+        <input type="range" min="0" max="100" step="1" [value]="alfa() * 100" aria-label="Coeficiente de optimismo de Hurwicz" (input)="setAlfa($any($event.target).value)">
+      </label>
+      <b class="alfa">α = {{ alfa().toFixed(2) }}</b>
+      <span class="botones">
+        <button class="mini" type="button" (click)="restablecer()">Deshacer cambios</button>
+        <button class="mini" type="button" data-acc="guardar-datos" [disabled]="ocupado()" (click)="guardar()">Guardar como mis datos</button>
+        @if (c.guardado) { <button class="mini" type="button" data-acc="ejemplo" [disabled]="ocupado()" (click)="ejemplo()">Volver a los datos de ejemplo</button> }
+        <button class="mini" type="button" data-acc="exportar" [disabled]="ocupado()" (click)="exportar()">Exportar a Power BI / Excel</button>
+      </span>
+    </div>
+  </section>
+
+  @if (ev(); as e) {
+    <section class="card tw">
+      <p class="rotulo">Resultado de cada criterio</p>
+      <table class="dec-tabla" data-res="1">
+        <thead>
+          <tr><th>Criterio</th>@for (a of e.alternativas; track a) { <th class="n">{{ a }}</th> }<th>Recomienda</th></tr>
+        </thead>
+        <tbody>
+          @for (r of e.resultados; track r.clave) {
+            <tr [attr.data-criterio]="r.clave">
+              <td>
+                <b>{{ r.clave === 'hurwicz' ? 'Hurwicz (α=' + e.alfa.toFixed(2) + ')' : r.criterio }}</b><br><small class="mu">{{ r.tipo }}</small>
+              </td>
+              @if (r.valores) {
+                @for (v of r.valores; track $index) {
+                  <td class="n" [class.gana]="ganaAlgo($index, r.ganador)">{{ v | number:'1.0-2' }}</td>
+                }
+                <td>
+                  <b>{{ e.alternativas[r.ganador!] }}</b>
+                  @if (r.empates.length) { <small class="mu"> (empata con {{ txtEmpate(e, r) }})</small> }
+                </td>
+              } @else {
+                @for (a of e.alternativas; track a) { <td class="n mu">—</td> }
+                <td><small class="mu">{{ r.motivo || 'Sin datos' }}</small></td>
+              }
+            </tr>
+          }
+        </tbody>
+      </table>
+      <details class="detalle-arrep">
+        <summary>Matriz de arrepentimiento (la que usa Savage)</summary>
+        <p class="mu">Cada cifra es lo que se deja de ganar, en ese escenario, por no haber elegido la mejor alternativa. Savage elige la alternativa cuyo mayor arrepentimiento sea el menor.</p>
+        <table class="dec-tabla">
+          <thead><tr><th>Alternativa</th>@for (x of e.escenarios; track x) { <th class="n">{{ x }}</th> }</tr></thead>
+          <tbody>
+            @for (a of e.alternativas; track a; let i = $index) {
+              <tr><td>{{ a }}</td>@for (v of e.arrepentimiento[i]; track $index) { <td class="n">{{ v | number:'1.0-2' }}</td> }</tr>
+            }
+          </tbody>
+        </table>
+      </details>
+      <details class="detalle-ayuda">
+        <summary>Cómo se lee cada criterio</summary>
+        <ul>@for (k of criterios(); track k.clave) { <li><b>{{ k.nombre }}: </b>{{ k.idea }}</li> }</ul>
+      </details>
+    </section>
+
+    <section class="card">
+      <p class="rotulo">Consenso entre criterios</p>
+      @for (v of votos(e); track v[0]) {
+        <div class="voto">
+          <span>{{ v[0] }}</span>
+          <span class="marcas" aria-hidden="true">@for (m of marcas(e.consenso.total); track $index) { <i [class.lleno]="$index < v[1]"></i> }</span>
+          <b>{{ v[1] }} de {{ e.consenso.total }}</b>
+        </div>
+      }
+      <p [class]="e.consenso.mayoria ? 'dictamen' : 'dictamen sin-mayoria'" role="status">{{ e.consenso.mensaje }}</p>
+    </section>
+
+    <section class="card">
+      <p class="rotulo">Registro de la decisión</p>
+      <p class="mu">El sistema orienta, pero la decisión final es de quien administra. Queda guardada con la matriz y los resultados de este momento, y se refleja en el Dashboard y en Reportes.</p>
+      <div class="formulario">
+        <label>Alternativa elegida
+          <select aria-label="Alternativa elegida" (change)="elegir($any($event.target).value)">
+            @for (a of e.alternativas; track a) { <option [value]="a" [selected]="a === elegida()">{{ a }}</option> }
+          </select>
+        </label>
+        <label>Decisión basada en
+          <select aria-label="En qué se basó la decisión" (change)="base.set($any($event.target).value)">
+            <option value="consenso" [selected]="base() === 'consenso'">Consenso de los criterios</option>
+            @for (k of criterios(); track k.clave) { <option [value]="k.clave" [selected]="base() === k.clave">{{ k.nombre }}</option> }
+          </select>
+        </label>
+      </div>
+      <label>Notas
+        <textarea rows="2" maxlength="500" placeholder="Por qué se tomó esta decisión (opcional)" aria-label="Notas de la decisión" [value]="notas()" (input)="notas.set($any($event.target).value)"></textarea>
+      </label>
+      @if (errorRegistro()) { <p class="err" role="alert">{{ errorRegistro() }}</p> }
+      @if (registrada()) { <p class="okmsg" role="status">{{ registrada() }}</p> }
+      <button class="btn" type="button" data-acc="registrar" [disabled]="ocupado()" (click)="registrar()">Registrar decisión</button>
+    </section>
+  }
+}

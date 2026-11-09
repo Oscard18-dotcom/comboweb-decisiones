@@ -1,6 +1,3 @@
-# Publicación en Render con un solo clic (Blueprint). Crea el sitio web. La base de datos PostgreSQL es externa (Neon, gratuita y sin caducidad) para que dure todo el semestre.
-# Modo DEMOSTRACIÓN: pago y correo simulados (no se cobra nada). Cuando tengas Stripe y correo real,
-# cambia las variables (ver README) y quita MODO_DEMO.
 services:
   - type: web
     name: comboweb-decisiones
@@ -26,8 +23,6 @@ services:
         value: "true"
       - key: JWT_SECRET
         generateValue: true
-      # Cadena de conexión de la base de datos externa (Neon, plan gratuito sin caducidad).
-      # Usa la conexión DIRECTA (sin "-pooler" en el host). Se pega en Render al crear el Blueprint.
       - key: DATABASE_URL
         sync: false
       - key: ADMIN_EMAIL

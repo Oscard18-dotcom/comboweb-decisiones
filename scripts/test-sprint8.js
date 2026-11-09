@@ -1,7 +1,3 @@
-// Pruebas del Sprint 8: eliminar producto + publicación en línea (modo demostración, arranque en la nube).
-// Úsalas SOLO en tu base de desarrollo. Crean datos de prueba y los borran al terminar.
-//   npm run db:init && npm run test:sprint8      (requiere SEED_PASSWORD en .env; no necesita el servidor encendido)
-// Las pruebas de "preparar-nube" crean una base temporal; si tu usuario de PostgreSQL no puede crear bases, se omiten y se avisa.
 const fs = require('fs');
 const path = require('path');
 const { spawn, execFileSync } = require('child_process');
@@ -18,7 +14,7 @@ const server = app.listen(0);
 const B = `http://localhost:${server.address().port}`;
 async function call(m, p, body, tok, base = B) {
   const r = await fetch(base + p, { method: m, headers: { 'Content-Type': 'application/json', ...(tok ? { Authorization: 'Bearer ' + tok } : {}) }, body: body === undefined ? undefined : JSON.stringify(body) });
-  let j = {}; try { j = JSON.parse(await r.text()); } catch (e) { /* sin cuerpo */ }
+  let j = {}; try { j = JSON.parse(await r.text()); } catch (e) {  }
   return { s: r.status, j };
 }
 const R = Date.now();
@@ -45,7 +41,6 @@ async function arrancar(env, puerto) {
     clientes.push(reg.j.usuario.id); const cli = reg.j.token;
     const harina = (await q("SELECT id FROM insumos WHERE nombre='Harina'"))[0].id;
 
-    /* ===== Eliminar producto ===== */
     for (const [n, tok] of [['sin sesión', null], ['cliente', cli], ['cocina', cocina], ['almacén', almacen]]) {
       const r = await call('DELETE', '/api/admin/productos/1', undefined, tok); t(`eliminar producto: ${n} → ${tok ? 403 : 401}`, r.s === (tok ? 403 : 401), String(r.s));
     }
@@ -69,7 +64,6 @@ async function arrancar(env, puerto) {
     r = await call('DELETE', `/api/admin/productos/${A.p.id}`, undefined, admin); t('eliminarlo otra vez → 404', r.s === 404);
     const Bp = await nuevo(`Test8 Sin receta ${R}`); await call('DELETE', `/api/recetas/${Bp.rc.id}`, undefined, admin);
     r = await call('DELETE', `/api/admin/productos/${Bp.p.id}`, undefined, admin); t('eliminar un producto que no tiene receta', r.s === 200 && r.j.eliminado === true);
-    // Con ventas: se desactiva en lugar de borrarse
     const V = await nuevo(`Test8 Con ventas ${R}`);
     await call('PATCH', `/api/admin/productos/${V.p.id}/activo`, { activo: true }, admin);
     const cat = (await call('GET', '/api/catalogo')).j; const pres = cat.presentaciones.find((x) => x.nombre === 'Caja mediana').id;
@@ -86,7 +80,6 @@ async function arrancar(env, puerto) {
     r = await call('DELETE', `/api/admin/productos/${V.p.id}`, undefined, admin); t('repetir la eliminación sigue siendo seguro', r.s === 200 && r.j.archivado === true);
     t('"Desactivar producto" (PATCH) sigue funcionando', (await call('PATCH', `/api/admin/productos/${V.p.id}/activo`, { activo: true }, admin)).j.producto.activo === true);
 
-    /* ===== Modo demostración y publicación ===== */
     r = await call('GET', '/api/salud'); t('/api/salud en desarrollo: modo_demo = false', r.j.estado === 'ok' && r.j.modo_demo === false);
     const html = await (await fetch(B + '/')).text();
     t('la página ya no muestra el cartel de “Sitio de demostración”', !/id="demo"/.test(html) && !/Sitio de demostración/.test(html) && !fs.readFileSync(path.join(ROOT, 'public', 'app.js'), 'utf8').includes('#demo') && !/\.demo\{/.test(fs.readFileSync(path.join(ROOT, 'public', 'styles.css'), 'utf8')));
@@ -102,7 +95,6 @@ async function arrancar(env, puerto) {
     x = run(['-e', "require('./src/config'); console.log('URL=' + process.env.PUBLIC_URL)"], { ...prodBase, MODO_DEMO: 'true', PUBLIC_URL: 'https://mio.example.com', RENDER_EXTERNAL_URL: 'https://otro.onrender.com' });
     t('un PUBLIC_URL definido a mano tiene prioridad', /URL=https:\/\/mio\.example\.com/.test(x.out));
 
-    // Servidor real en "producción demo": compra completa de punta a punta
     const puerto = 3900 + (R % 90);
     const S = await arrancar({ ...prodBase, MODO_DEMO: 'true' }, puerto);
     t('el servidor arranca en producción con MODO_DEMO=true', S.ok, S.salida());
@@ -129,7 +121,6 @@ async function arrancar(env, puerto) {
     x = run(['scripts/verificar-despliegue.js'], { ...prodBase, MODO_DEMO: '' });
     t('verificar sin MODO_DEMO: el pago simulado en producción sigue siendo un error', x.code === 1);
 
-    /* ===== Archivos de publicación ===== */
     const yaml = fs.readFileSync(path.join(ROOT, 'render.yaml'), 'utf8');
     const pkg = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8'));
     t('render.yaml: servicio web gratuito con comando de arranque existente en package.json', /type: web/.test(yaml) && /plan: free/.test(yaml) && /startCommand: npm run start:nube/.test(yaml) && !!pkg.scripts['start:nube']);
@@ -138,7 +129,6 @@ async function arrancar(env, puerto) {
     t('render.yaml: modo demostración y producción declarados', /key: MODO_DEMO\s+value: "true"/.test(yaml) && /key: NODE_ENV\s+value: production/.test(yaml));
     t('.gitignore no deja subir .env ni respaldos', /^\.env$/m.test(fs.readFileSync(path.join(ROOT, '.gitignore'), 'utf8')) && /respaldos/.test(fs.readFileSync(path.join(ROOT, '.gitignore'), 'utf8')));
 
-    /* ===== preparar-nube sobre una base temporal ===== */
     const urlBase = new URL(process.env.DATABASE_URL); const nombreTemp = `comboweb_t8_${R}`;
     admPool = new Pool({ connectionString: process.env.DATABASE_URL.replace(/\/[^/]*$/, '/postgres'), ssl: process.env.DATABASE_SSL === 'true' ? { rejectUnauthorized: false } : false });
     try { await admPool.query(`CREATE DATABASE ${nombreTemp}`); tempDb = nombreTemp; } catch (e) { console.log(`AVISO: no se pudo crear una base temporal (${e.message}); se omiten las pruebas de preparar-nube.`); }
@@ -170,7 +160,7 @@ async function arrancar(env, puerto) {
       S3.h.kill('SIGTERM');
       x = run(['scripts/preparar-nube.js'], { ...envT, ADMIN_PASSWORD: 'clave-restablecida-9' });
       t('…sin esa variable, un reinicio normal ya no toca la contraseña', x.code === 0 && /Ya hay un administrador/.test(x.out));
-      await T.query('DELETE FROM usuarios'); // sin administrador
+      await T.query('DELETE FROM usuarios');
       x = run(['scripts/preparar-nube.js'], { ...envT, ADMIN_EMAIL: '', ADMIN_PASSWORD: '' });
       t('sin ADMIN_EMAIL/ADMIN_PASSWORD y sin administrador: avisa claramente y no falla', x.code === 0 && /No hay administrador/.test(x.out));
       x = run(['scripts/preparar-nube.js'], { ...envT, ADMIN_EMAIL: 'x@prueba.test', ADMIN_PASSWORD: 'corta' });
@@ -181,7 +171,7 @@ async function arrancar(env, puerto) {
     fail++; console.log('FAIL error inesperado:', e && e.stack || e);
   } finally {
     try {
-      for (const h of hijos) { try { h.kill('SIGKILL'); } catch (e) { /* ya terminó */ } }
+      for (const h of hijos) { try { h.kill('SIGKILL'); } catch (e) {  } }
       mail.reemplazar(null);
       if (tempDb && admPool) { await sleep(300); await admPool.query(`DROP DATABASE IF EXISTS ${tempDb} WITH (FORCE)`).catch((e) => console.log('Aviso: no se pudo borrar la base temporal:', e.message)); }
       if (admPool) await admPool.end().catch(() => {});

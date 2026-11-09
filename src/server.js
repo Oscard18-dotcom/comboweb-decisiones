@@ -9,14 +9,13 @@ servidor.on('error', (e) => {
   else console.error('\nPROBLEMA - El sistema no pudo encenderse:', e.message, '\n');
   process.exit(1);
 });
-const trabajo = notif.iniciarTrabajo(); // envía y reintenta los correos pendientes cada minuto
+const trabajo = notif.iniciarTrabajo();
 
-// Apagado ordenado: deja de aceptar peticiones, termina las que están en curso y cierra la base de datos
 function cerrar(senal) {
   console.log(`${senal} recibido: cerrando…`);
   clearInterval(trabajo);
   servidor.close(async () => { await db.pool.end().catch(() => {}); process.exit(0); });
-  setTimeout(() => process.exit(1), 10000).unref(); // si algo no termina, se fuerza la salida
+  setTimeout(() => process.exit(1), 10000).unref();
 }
 process.on('SIGTERM', () => cerrar('SIGTERM'));
 process.on('SIGINT', () => cerrar('SIGINT'));

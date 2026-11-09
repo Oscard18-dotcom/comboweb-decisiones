@@ -1,6 +1,3 @@
-// Pruebas del Sprint 4 (inventario, alertas de reorden y recetas con costeo).
-// Úsalas SOLO en tu base de desarrollo: crean datos de prueba y, al final, los borran y restauran el inventario.
-//   npm run db:init && npm run test:sprint4        (requiere SEED_PASSWORD en .env; no necesita el servidor encendido)
 const app = require('../src/app');
 const db = require('../src/db');
 const svc = require('../src/services/pedidos');
@@ -11,7 +8,7 @@ const server = app.listen(0);
 const B = `http://localhost:${server.address().port}`;
 async function call(m, p, body, tok) {
   const r = await fetch(B + p, { method: m, headers: { 'Content-Type': 'application/json', ...(tok ? { Authorization: 'Bearer ' + tok } : {}) }, body: body === undefined ? undefined : JSON.stringify(body) });
-  let j = {}; try { j = await r.json(); } catch (e) { /* sin cuerpo */ }
+  let j = {}; try { j = await r.json(); } catch (e) {  }
   return { s: r.status, j };
 }
 const R = Date.now();
@@ -31,7 +28,6 @@ const near = (a, b, e = 1e-6) => Math.abs(a - b) < e;
     const lista = async () => (await call('GET', '/api/inventario?inactivos=1', undefined, almacen)).j.insumos;
     const porNombre = async (n) => (await lista()).find((i) => i.nombre === n);
 
-    /* ===== INVENTARIO ===== */
     let r = await call('GET', '/api/inventario'); t('inventario sin sesión → 401', r.s === 401);
     r = await call('GET', '/api/inventario', undefined, cliente); t('cliente en inventario → 403', r.s === 403);
     r = await call('GET', '/api/inventario', undefined, cocina); t('cocina en inventario → 403', r.s === 403);
@@ -56,7 +52,6 @@ const near = (a, b, e = 1e-6) => Math.abs(a - b) < e;
     r = await call('PUT', `/api/inventario/${id}`, { stock_minimo: -1 }, almacen); t('mínimo inválido → 400', r.s === 400);
     r = await call('PUT', '/api/inventario/999999', { stock_minimo: 1 }, almacen); t('editar insumo inexistente → 404', r.s === 404);
 
-    // Movimientos
     const mov = (body, tok = almacen) => call('POST', `/api/inventario/${id}/movimientos`, body, tok);
     r = await mov({ tipo: 'entrada', cantidad: 50, nota: 'Compra proveedor' }); t('entrada suma al stock', r.s === 201 && r.j.insumo.stock === 150 && r.j.movimiento.tipo === 'entrada');
     r = await mov({ tipo: 'salida', cantidad: 30, nota: 'Merma' }); t('salida resta al stock', r.s === 201 && r.j.insumo.stock === 120);
@@ -74,7 +69,6 @@ const near = (a, b, e = 1e-6) => Math.abs(a - b) < e;
     r = await call('POST', '/api/inventario/999999/movimientos', { tipo: 'entrada', cantidad: 1 }, almacen); t('movimiento a insumo inexistente → 404', r.s === 404);
     r = await call('POST', `/api/inventario/${id}/movimientos`, { tipo: 'entrada', cantidad: 1 }, cliente); t('cliente no puede registrar movimientos → 403', r.s === 403);
 
-    // Alertas de reorden (HU09)
     await mov({ tipo: 'ajuste', cantidad: 30 });
     r = await call('GET', '/api/inventario/alertas', undefined, admin); let a = r.j.alertas.find((x) => x.id === id);
     t('stock igual al mínimo → genera alerta con stock, mínimo y sugerido', a && a.stock === 30 && a.stock_minimo === 30 && a.sugerido_reponer === 30);
@@ -83,7 +77,6 @@ const near = (a, b, e = 1e-6) => Math.abs(a - b) < e;
     await mov({ tipo: 'entrada', cantidad: 20 });
     r = await call('GET', '/api/inventario/alertas', undefined, admin); t('al reponer sobre el mínimo la alerta se retira sola', !r.j.alertas.some((x) => x.id === id));
 
-    // Eliminar (HU07): avisar si está en recetas
     r = await call('DELETE', `/api/inventario/${harina.id}`, undefined, almacen); t('eliminar insumo usado en recetas → 409 y dice en cuáles', r.s === 409 && /Cupcake/.test(r.j.error) && /Brownie/.test(r.j.error), r.j.error);
     const caja = await porNombre('Caja mediana'); r = await call('DELETE', `/api/inventario/${caja.id}`, undefined, almacen); t('eliminar un insumo usado en una presentación → 409', r.s === 409 && /presentación/.test(r.j.error));
     r = await call('PUT', `/api/inventario/${harina.id}`, { activo: false }, almacen); t('archivar un insumo usado en recetas → 409', r.s === 409);
@@ -95,7 +88,6 @@ const near = (a, b, e = 1e-6) => Math.abs(a - b) < e;
     r = await mov({ tipo: 'entrada', cantidad: 1 }); t('no se registran movimientos en un insumo archivado → 409', r.s === 409);
     r = await call('PUT', `/api/inventario/${id}`, { activo: true }, almacen); t('se puede reactivar', r.s === 200 && r.j.insumo.activo === true);
 
-    // Concurrencia: nunca stock negativo ni entradas perdidas
     await mov({ tipo: 'ajuste', cantidad: 50 });
     const salidas = await Promise.all(Array.from({ length: 10 }, () => mov({ tipo: 'salida', cantidad: 10 })));
     t('10 salidas simultáneas de 10 sobre stock 50: 5 se aceptan y 5 se rechazan', salidas.filter((x) => x.s === 201).length === 5 && salidas.filter((x) => x.s === 409).length === 5);
@@ -103,7 +95,6 @@ const near = (a, b, e = 1e-6) => Math.abs(a - b) < e;
     await Promise.all(Array.from({ length: 10 }, () => mov({ tipo: 'entrada', cantidad: 5 })));
     t('10 entradas simultáneas de 5 suman exactamente 50 (sin pérdidas)', (await porNombre(NOM)).stock === 50);
 
-    // Integración con pedidos: el descuento por un pedido dispara la alerta
     const cat = (await call('GET', '/api/catalogo')).j; const P = (n) => cat.productos.find((p) => p.nombre === n).id; const PRES = cat.presentaciones.find((p) => p.nombre === 'Caja mediana').id;
     const comprar = async (items, fecha) => {
       const ck = await call('POST', '/api/pedidos/checkout', { items, presentacion_id: PRES, fecha, hora: '12:00', direccion: { cp: '91190', colonia: 'Las Flores', calle: 'Calle de Prueba', num_ext: '12' } }, cliente);
@@ -111,14 +102,13 @@ const near = (a, b, e = 1e-6) => Math.abs(a - b) < e;
       return call('POST', `/api/pagos/simulado/${ck.j.checkout_id}/aprobar`, undefined, cliente);
     };
     const cafe = await porNombre('Café molido'); await call('POST', `/api/inventario/${cafe.id}/movimientos`, { tipo: 'ajuste', cantidad: cafe.stock_minimo + 10 }, almacen);
-    r = await comprar([{ producto_id: P('Café americano'), cantidad: 1 }], dia(0)); // 18 g
+    r = await comprar([{ producto_id: P('Café americano'), cantidad: 1 }], dia(0));
     t('un pedido descuenta el café y deja el insumo bajo su mínimo', r.j.estado === 'pagado' && (await porNombre('Café molido')).stock === cafe.stock_minimo - 8);
     r = await call('GET', '/api/inventario/alertas', undefined, admin); t('…y por eso aparece en las alertas de reorden', r.j.alertas.some((x) => x.nombre === 'Café molido'));
     r = await call('GET', `/api/inventario/${cafe.id}/movimientos`, undefined, almacen); t('el movimiento del pedido queda en el historial ligado al pedido', r.j.movimientos[0].tipo === 'salida' && r.j.movimientos[0].pedido_id);
     await call('POST', `/api/inventario/${cafe.id}/movimientos`, { tipo: 'entrada', cantidad: 500, nota: 'Compra' }, almacen);
     r = await call('GET', '/api/inventario/alertas', undefined, admin); t('al comprar café la alerta se retira', !r.j.alertas.some((x) => x.nombre === 'Café molido'));
 
-    /* ===== RECETAS ===== */
     r = await call('GET', '/api/recetas', undefined, almacen); t('almacén no ve recetas ni costos → 403', r.s === 403);
     r = await call('GET', '/api/recetas', undefined, cliente); t('cliente en recetas → 403', r.s === 403);
     r = await call('GET', '/api/recetas'); t('recetas sin sesión → 401', r.s === 401);
@@ -152,14 +142,12 @@ const near = (a, b, e = 1e-6) => Math.abs(a - b) < e;
     r = await call('PUT', '/api/recetas/999999', { rinde: 1, ingredientes: ING }, admin); t('editar receta inexistente → 404', r.s === 404);
     await call('PUT', `/api/recetas/${R1.id}`, { rinde: 12, ingredientes: ING }, admin);
 
-    // El costo sigue al inventario
     const costoAntes = (await call('GET', `/api/recetas/${R1.id}`, undefined, admin)).j.receta.costo_total;
     await call('PUT', `/api/inventario/${mant.id}`, { costo_unitario: mant.costo_unitario + 1 }, almacen);
     const costoDesp = (await call('GET', `/api/recetas/${R1.id}`, undefined, admin)).j.receta.costo_total;
     t('si sube el costo de un insumo, el costo de la receta se actualiza (+240 g × $1)', near(costoDesp - costoAntes, 240, 0.01), `${costoAntes} → ${costoDesp}`);
     await call('PUT', `/api/inventario/${mant.id}`, { costo_unitario: mant.costo_unitario }, almacen);
 
-    // Activar y vender: el consumo es cantidad ÷ rinde × piezas
     r = await call('PATCH', `/api/admin/productos/${pPan}/activo`, { activo: true }, admin); t('con receta ya se puede activar el producto', r.s === 200 && r.j.producto.activo === true);
     t('el producto activo aparece en el catálogo público', (await call('GET', '/api/catalogo')).j.productos.some((p) => p.id === pPan));
     const antes = { h: (await porNombre('Harina')).stock, a: (await porNombre('Azúcar')).stock, m: (await porNombre('Mantequilla')).stock };
@@ -167,7 +155,6 @@ const near = (a, b, e = 1e-6) => Math.abs(a - b) < e;
     t('pedido de 3 piezas (receta de 12): descuenta 120 g de harina, 90 g de azúcar y 60 g de mantequilla',
       r.j.estado === 'pagado' && near(antes.h - (await porNombre('Harina')).stock, 120) && near(antes.a - (await porNombre('Azúcar')).stock, 90) && near(antes.m - (await porNombre('Mantequilla')).stock, 60));
 
-    // Recetas fraccionadas: 100 g / 7 piezas = 14.2857… g por pieza (se redondea hacia arriba a 4 decimales)
     r = await rec(pFrac, 7, [{ insumo_id: harina.id, cantidad: 100 }]); t('crear receta de rinde 7', r.s === 201);
     await call('PATCH', `/api/admin/productos/${pFrac}/activo`, { activo: true }, admin);
     let h0 = (await porNombre('Harina')).stock; r = await comprar([{ producto_id: pFrac, cantidad: 1 }], dia(2));
@@ -175,7 +162,6 @@ const near = (a, b, e = 1e-6) => Math.abs(a - b) < e;
     h0 = (await porNombre('Harina')).stock; r = await comprar([{ producto_id: pFrac, cantidad: 3 }], dia(3));
     t('3 piezas descuentan 42.8572 g', r.j.estado === 'pagado' && near(h0 - (await porNombre('Harina')).stock, 42.8572, 1e-6));
 
-    // Eliminar recetas
     r = await call('DELETE', `/api/recetas/${R1.id}`, undefined, admin); t('no se borra la receta de un producto activo → 409', r.s === 409);
     await call('PATCH', `/api/admin/productos/${pPan}/activo`, { activo: false }, admin);
     r = await call('DELETE', `/api/recetas/${R1.id}`, undefined, admin); t('con el producto desactivado sí se borra la receta', r.s === 200 && r.j.eliminada === true);

@@ -5,7 +5,6 @@ const stripe = require('../payments/stripe');
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-// POST /api/pagos/webhook/stripe  (recibe el cuerpo CRUDO: se monta antes de express.json)
 async function stripeWebhook(req, res) {
   if (pagos.nombre() !== 'stripe') return res.status(404).json({ error: 'Ruta no encontrada.' });
   let ev;
@@ -23,7 +22,7 @@ async function stripeWebhook(req, res) {
     res.json({ received: true });
   } catch (e) {
     console.error('Error en webhook de Stripe:', e);
-    res.status(500).json({ error: 'Error al procesar el evento.' }); // Stripe reintentará
+    res.status(500).json({ error: 'Error al procesar el evento.' });
   }
 }
 module.exports = { stripeWebhook };

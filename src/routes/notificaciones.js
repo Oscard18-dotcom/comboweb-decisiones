@@ -6,7 +6,6 @@ const notif = require('../services/notificaciones');
 
 router.use(auth, roles('admin'));
 
-// Lista de avisos enviados y su estado. ?estado=fallida|error|pendiente|enviada
 router.get('/', wrap(async (req, res) => {
   const estado = ['pendiente', 'enviando', 'enviada', 'error', 'fallida'].includes(req.query.estado) ? req.query.estado : null;
   const { rows } = await db.query(
@@ -15,7 +14,6 @@ router.get('/', wrap(async (req, res) => {
   res.json({ notificaciones: rows.map((r) => ({ ...r, folio: r.pedido_proveedor_id ? notif.folioPP(r.pedido_proveedor_id) : notif.folio(r.pedido_id) })) });
 }));
 
-// Reintentar una notificación que falló
 router.post('/:id/reintentar', wrap(async (req, res) => {
   const id = paramId(req);
   if (!id) return res.status(400).json({ error: 'Identificador inválido.' });

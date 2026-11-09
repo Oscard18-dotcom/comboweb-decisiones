@@ -1,7 +1,3 @@
-// Toma de decisiones (DSS) del administrador de EN COMBO.
-// Matriz de pagos: pagos[i][j] = utilidad de la alternativa i si ocurre el escenario j (filas = alternativas, columnas = escenarios).
-// Seis criterios: cuatro de incertidumbre (maximin, maximax, Laplace, Hurwicz), uno de arrepentimiento (Savage) y uno de riesgo (VME).
-// La alternativa ganadora es la de mayor valor, salvo en Savage, donde gana el MENOR arrepentimiento máximo.
 const CASOS = require('../data/casos-decision.json').casos;
 
 const CRITERIOS = [
@@ -19,7 +15,6 @@ const CRITERIOS = [
     idea: 'Con probabilidades conocidas: promedia los pagos ponderados por la probabilidad de cada escenario y elige el mayor.' },
 ];
 
-/* ---------- Criterios (cada uno regresa un valor por alternativa) ---------- */
 const minimo = (f) => Math.min(...f), maximo = (f) => Math.max(...f);
 const maximin = (p) => p.map(minimo);
 const maximax = (p) => p.map(maximo);
@@ -35,7 +30,6 @@ const vme = (p, prob) => p.map((f) => f.reduce((a, x, j) => a + prob[j] * x, 0))
 const mejorIndice = (v, menorEsMejor) => { let m = 0; for (let i = 1; i < v.length; i++) if (menorEsMejor ? v[i] < v[m] : v[i] > v[m]) m = i; return m; };
 const iguales = (v, i) => v.map((x, k) => k).filter((k) => Math.abs(v[k] - v[i]) < 1e-9);
 
-/* ---------- Validación de la matriz que llega del navegador ---------- */
 function validar(b) {
   const err = (m) => ({ error: m });
   if (!b || typeof b !== 'object') return err('Envía la matriz de decisión.');
@@ -62,7 +56,6 @@ function validar(b) {
   return { alts, escs, P, prob, alfa, advertencia };
 }
 
-/* ---------- Evaluación completa: los 6 criterios, el arrepentimiento y el consenso ---------- */
 function evaluar(entrada) {
   const v = validar(entrada);
   if (v.error) return v;
@@ -88,9 +81,7 @@ function evaluar(entrada) {
   return { alternativas: alts, escenarios: escs, probabilidades: prob, alfa, advertencia, resultados, arrepentimiento: arrepentimiento(P), consenso };
 }
 
-/* ---------- Exportación a Power BI / Excel (dos archivos, como en el sistema de referencia) ---------- */
 const celda = (x) => { const s = String(x ?? ''); return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
-// Texto que empieza con = + - @ lo tomaría Excel como fórmula: se le antepone un apóstrofo.
 const txtSeguro = (x) => { const s = String(x ?? ''); return /^[=+\-@\t\r]/.test(s) ? "'" + s : s; };
 const linea = (...c) => c.map(celda).join(',');
 function exportar(entrada, titulo = 'decision') {

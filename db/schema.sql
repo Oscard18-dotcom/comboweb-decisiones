@@ -1,4 +1,3 @@
--- ComboWeb App · Esquema PostgreSQL (Sprint 2)
 CREATE TABLE IF NOT EXISTS usuarios (
   id            SERIAL PRIMARY KEY,
   nombre        VARCHAR(80)  NOT NULL,
@@ -33,7 +32,7 @@ CREATE TABLE IF NOT EXISTS presentaciones (
   id        SERIAL PRIMARY KEY,
   nombre    VARCHAR(60) NOT NULL UNIQUE,
   precio    NUMERIC(10,2) NOT NULL CHECK (precio >= 0),
-  insumo_id INTEGER NOT NULL REFERENCES insumos(id),  -- la caja que se descuenta del inventario
+  insumo_id INTEGER NOT NULL REFERENCES insumos(id),
   activo    BOOLEAN NOT NULL DEFAULT TRUE
 );
 
@@ -48,7 +47,6 @@ CREATE TABLE IF NOT EXISTS receta_ingredientes (
   PRIMARY KEY (receta_id, insumo_id)
 );
 
--- Tablas que se usan desde el Sprint 3 en adelante (se crean ahora para tener el modelo completo)
 CREATE TABLE IF NOT EXISTS pedidos (
   id              SERIAL PRIMARY KEY,
   cliente_id      INTEGER NOT NULL REFERENCES usuarios(id),
@@ -92,9 +90,6 @@ CREATE TABLE IF NOT EXISTS pagos (
   creado_en  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
--- ===== Sprint 3: pago =====
--- Un "checkout" es el intento de compra: guarda el combo y el monto mientras el cliente paga.
--- El pedido real solo se crea cuando el pago se confirma (así no existen pedidos sin pagar).
 CREATE TABLE IF NOT EXISTS checkouts (
   id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   cliente_id INTEGER NOT NULL REFERENCES usuarios(id),
@@ -108,22 +103,17 @@ CREATE TABLE IF NOT EXISTS checkouts (
   expira_en  TIMESTAMPTZ NOT NULL
 );
 CREATE INDEX IF NOT EXISTS checkouts_cliente_idx ON checkouts (cliente_id);
--- Evita registrar dos veces el mismo cobro (los webhooks pueden repetirse)
+
 CREATE UNIQUE INDEX IF NOT EXISTS pagos_ref_uq ON pagos (proveedor, referencia);
 
--- ===== Sprint 4: inventario y recetas =====
--- "rinde": cuántas piezas salen de la receta. Las cantidades de la receta son para TODO el lote;
--- el consumo por pieza vendida es cantidad / rinde. (Las recetas del Sprint 3 quedan con rinde 1.)
 ALTER TABLE recetas ADD COLUMN IF NOT EXISTS rinde INTEGER NOT NULL DEFAULT 1 CHECK (rinde > 0 AND rinde <= 1000);
--- Más decimales para que recetas fraccionadas (p. ej. 100 g / 7 piezas) no acumulen error
+
 ALTER TABLE insumos ALTER COLUMN stock TYPE NUMERIC(14,4);
 ALTER TABLE insumos ALTER COLUMN stock_minimo TYPE NUMERIC(14,4);
 ALTER TABLE movimientos_inventario ALTER COLUMN cantidad TYPE NUMERIC(14,4);
 ALTER TABLE movimientos_inventario ADD COLUMN IF NOT EXISTS nota VARCHAR(200);
 CREATE INDEX IF NOT EXISTS movimientos_insumo_idx ON movimientos_inventario (insumo_id, creado_en DESC);
 
--- ===== Sprint 5: seguimiento, cocina y notificaciones =====
--- Cada cambio de estatus queda registrado con fecha, hora y quién lo hizo (HU06)
 CREATE TABLE IF NOT EXISTS pedido_estatus_historial (
   id         SERIAL PRIMARY KEY,
   pedido_id  INTEGER NOT NULL REFERENCES pedidos(id) ON DELETE CASCADE,
@@ -136,8 +126,6 @@ INSERT INTO pedido_estatus_historial (pedido_id, estatus, creado_en)
   SELECT p.id, 'Pendiente', p.creado_en FROM pedidos p
   WHERE NOT EXISTS (SELECT 1 FROM pedido_estatus_historial h WHERE h.pedido_id = p.id AND h.estatus = 'Pendiente');
 
--- Bandeja de salida de correos: se escribe en la MISMA transacción que el cambio de estatus,
--- así nunca se pierde un aviso ni se manda dos veces (UNIQUE pedido + plantilla).
 CREATE TABLE IF NOT EXISTS notificaciones (
   id              SERIAL PRIMARY KEY,
   pedido_id       INTEGER NOT NULL REFERENCES pedidos(id) ON DELETE CASCADE,
@@ -159,11 +147,8 @@ CREATE TABLE IF NOT EXISTS notificaciones (
 );
 CREATE INDEX IF NOT EXISTS notificaciones_estado_idx ON notificaciones (estado, proximo_intento);
 
--- ===== Sprint 6: seguridad de cuentas =====
--- Al cambiar o restablecer una contraseña sube este número y todas las sesiones anteriores dejan de servir.
 ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS token_version INTEGER NOT NULL DEFAULT 0;
 
--- ===== Sprint 7: proveedores y pedidos de compra de insumos =====
 CREATE TABLE IF NOT EXISTS proveedores (
   id        SERIAL PRIMARY KEY,
   nombre    VARCHAR(80) NOT NULL,
@@ -176,7 +161,6 @@ CREATE TABLE IF NOT EXISTS proveedores (
 );
 CREATE UNIQUE INDEX IF NOT EXISTS proveedores_nombre_uq ON proveedores (lower(nombre));
 
--- Qué insumos surte cada proveedor (opcional: sin filas = puede pedírsele cualquier insumo)
 CREATE TABLE IF NOT EXISTS proveedor_insumos (
   proveedor_id INTEGER NOT NULL REFERENCES proveedores(id) ON DELETE CASCADE,
   insumo_id    INTEGER NOT NULL REFERENCES insumos(id),
@@ -207,7 +191,6 @@ CREATE TABLE IF NOT EXISTS pedido_proveedor_items (
 
 ALTER TABLE movimientos_inventario ADD COLUMN IF NOT EXISTS pedido_proveedor_id INTEGER REFERENCES pedidos_proveedor(id);
 
--- La bandeja de correos ahora también sirve a los pedidos a proveedor
 ALTER TABLE notificaciones ALTER COLUMN pedido_id DROP NOT NULL;
 ALTER TABLE notificaciones ALTER COLUMN cliente_id DROP NOT NULL;
 ALTER TABLE notificaciones ADD COLUMN IF NOT EXISTS pedido_proveedor_id INTEGER REFERENCES pedidos_proveedor(id) ON DELETE CASCADE;
@@ -218,7 +201,6 @@ DO $$ BEGIN
     CHECK ((pedido_id IS NOT NULL AND pedido_proveedor_id IS NULL) OR (pedido_id IS NULL AND pedido_proveedor_id IS NOT NULL));
 EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
--- Sprint 9: dirección de entrega del pedido (los pedidos anteriores quedan sin dirección)
 ALTER TABLE pedidos ADD COLUMN IF NOT EXISTS dir_cp          VARCHAR(5);
 ALTER TABLE pedidos ADD COLUMN IF NOT EXISTS dir_colonia     VARCHAR(80);
 ALTER TABLE pedidos ADD COLUMN IF NOT EXISTS dir_calle       VARCHAR(100);
@@ -228,21 +210,94 @@ ALTER TABLE pedidos ADD COLUMN IF NOT EXISTS dir_municipio   VARCHAR(80);
 ALTER TABLE pedidos ADD COLUMN IF NOT EXISTS dir_estado      VARCHAR(40);
 ALTER TABLE pedidos ADD COLUMN IF NOT EXISTS dir_referencias VARCHAR(200);
 
--- Sprint 9: bandeja de notificaciones del cliente (se reutilizan los avisos de pedido; solo se marca cuándo los leyó)
 ALTER TABLE notificaciones ADD COLUMN IF NOT EXISTS leida_en TIMESTAMPTZ;
 CREATE INDEX IF NOT EXISTS notificaciones_cliente_idx ON notificaciones (cliente_id, creado_en DESC);
 
--- ComboWeb Decisiones: decisiones que el administrador registra desde la pestaña "Toma de decisiones"
 CREATE TABLE IF NOT EXISTS decisiones (
   id          SERIAL PRIMARY KEY,
   caso_id     VARCHAR(40) NOT NULL,
   titulo      VARCHAR(120) NOT NULL,
   alternativa VARCHAR(80) NOT NULL,
-  base        VARCHAR(40) NOT NULL,          -- 'consenso' o la clave de un criterio (maximin, vme, ...)
+  base        VARCHAR(40) NOT NULL,
   notas       VARCHAR(500),
-  matriz      JSONB NOT NULL,                -- lo que se evaluó (alternativas, escenarios, pagos, probabilidades, α)
-  resultados  JSONB NOT NULL,                -- lo que dijo cada criterio en ese momento
+  matriz      JSONB NOT NULL,
+  resultados  JSONB NOT NULL,
   usuario_id  INTEGER REFERENCES usuarios(id) ON DELETE SET NULL,
   creado_en   TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS decisiones_creado_idx ON decisiones (creado_en DESC);
+
+CREATE TABLE IF NOT EXISTS decision_datos (
+  caso_id        VARCHAR(40) PRIMARY KEY,
+  pagos          JSONB NOT NULL,
+  probabilidades JSONB NOT NULL,
+  alfa           NUMERIC(4,3) NOT NULL DEFAULT 0.6,
+  usuario_id     INTEGER REFERENCES usuarios(id) ON DELETE SET NULL,
+  actualizado_en TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE SCHEMA IF NOT EXISTS dw;
+CREATE TABLE IF NOT EXISTS dw.dim_fecha (
+  fecha_key    INTEGER PRIMARY KEY,
+  fecha        DATE NOT NULL UNIQUE,
+  anio         SMALLINT NOT NULL,
+  trimestre    SMALLINT NOT NULL,
+  mes          SMALLINT NOT NULL,
+  nombre_mes   VARCHAR(12) NOT NULL,
+  dia          SMALLINT NOT NULL,
+  dia_semana   SMALLINT NOT NULL,
+  nombre_dia   VARCHAR(12) NOT NULL,
+  es_fin_semana BOOLEAN NOT NULL,
+  temporada    VARCHAR(30) NOT NULL
+);
+CREATE TABLE IF NOT EXISTS dw.dim_producto (
+  producto_key   SERIAL PRIMARY KEY,
+  producto_id    INTEGER NOT NULL UNIQUE,
+  nombre         VARCHAR(80) NOT NULL,
+  precio_lista   NUMERIC(10,2) NOT NULL,
+  costo_estimado NUMERIC(10,4) NOT NULL DEFAULT 0
+);
+CREATE TABLE IF NOT EXISTS dw.dim_presentacion (
+  presentacion_key SERIAL PRIMARY KEY,
+  presentacion_id  INTEGER NOT NULL UNIQUE,
+  nombre           VARCHAR(60) NOT NULL
+);
+CREATE TABLE IF NOT EXISTS dw.dim_zona (
+  zona_key  SERIAL PRIMARY KEY,
+  cp        VARCHAR(5) NOT NULL,
+  colonia   VARCHAR(80) NOT NULL,
+  municipio VARCHAR(80) NOT NULL,
+  UNIQUE (cp, colonia, municipio)
+);
+CREATE TABLE IF NOT EXISTS dw.fact_ventas (
+  id               BIGSERIAL PRIMARY KEY,
+  fecha_key        INTEGER NOT NULL REFERENCES dw.dim_fecha(fecha_key),
+  producto_key     INTEGER NOT NULL REFERENCES dw.dim_producto(producto_key),
+  presentacion_key INTEGER NOT NULL REFERENCES dw.dim_presentacion(presentacion_key),
+  zona_key         INTEGER NOT NULL REFERENCES dw.dim_zona(zona_key),
+  pedido_id        INTEGER,
+  origen           VARCHAR(10) NOT NULL CHECK (origen IN ('pedido','demo')),
+  cantidad         INTEGER NOT NULL CHECK (cantidad > 0),
+  ingreso          NUMERIC(12,2) NOT NULL,
+  costo            NUMERIC(12,2) NOT NULL
+);
+CREATE INDEX IF NOT EXISTS fact_ventas_fecha_idx ON dw.fact_ventas (fecha_key);
+CREATE INDEX IF NOT EXISTS fact_ventas_origen_idx ON dw.fact_ventas (origen);
+CREATE TABLE IF NOT EXISTS dw.carga_log (
+  id         SERIAL PRIMARY KEY,
+  creado_en  TIMESTAMPTZ NOT NULL DEFAULT now(),
+  usuario_id INTEGER REFERENCES usuarios(id) ON DELETE SET NULL,
+  tipo       VARCHAR(20) NOT NULL,
+  filas      INTEGER NOT NULL,
+  detalle    VARCHAR(200)
+);
+
+CREATE TABLE IF NOT EXISTS recuperaciones_password (
+  id         SERIAL PRIMARY KEY,
+  usuario_id INTEGER NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
+  token_hash CHAR(64) NOT NULL UNIQUE,
+  expira_en  TIMESTAMPTZ NOT NULL,
+  usado_en   TIMESTAMPTZ,
+  creado_en  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS recuperaciones_usuario_idx ON recuperaciones_password (usuario_id, creado_en);

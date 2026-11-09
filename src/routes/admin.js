@@ -8,7 +8,6 @@ router.use(auth, roles('admin'));
 
 const dup = (res) => res.status(409).json({ error: 'Ya existe un registro con ese nombre.' });
 
-/* ---------- Productos (HU12) ---------- */
 router.get('/productos', wrap(async (req, res) => {
   const { rows } = await db.query(
     `SELECT p.id,p.nombre,p.descripcion,p.precio,p.activo,(r.id IS NOT NULL) AS tiene_receta
@@ -23,7 +22,6 @@ router.post('/productos', wrap(async (req, res) => {
   if (precio === null) return res.status(400).json({ error: 'El precio debe ser un número mayor a cero.' });
   if (descripcion != null && !isText(String(descripcion), 0, 300)) return res.status(400).json({ error: 'La descripción es muy larga.' });
   try {
-    // Nace inactivo: solo se puede activar cuando tenga receta
     const { rows } = await db.query(
       'INSERT INTO productos(nombre,descripcion,precio,activo) VALUES($1,$2,$3,false) RETURNING *',
       [nombre.trim(), descripcion ? String(descripcion).trim() : null, precio]);
@@ -58,7 +56,6 @@ router.patch('/productos/:id/activo', wrap(async (req, res) => {
   res.json({ producto: rows[0] });
 }));
 
-/* Eliminar producto: borra el producto y su receta. Si ya tiene ventas se DESACTIVA en lugar de borrarse, para no perder el historial de pedidos. */
 router.delete('/productos/:id', wrap(async (req, res) => {
   const id = paramId(req);
   if (!id) return res.status(400).json({ error: 'Identificador inválido.' });
@@ -73,13 +70,12 @@ router.delete('/productos/:id', wrap(async (req, res) => {
       await c.query('COMMIT');
       return res.json({ archivado: true });
     }
-    await c.query('DELETE FROM productos WHERE id=$1', [id]); // la receta y sus ingredientes se borran en cascada
+    await c.query('DELETE FROM productos WHERE id=$1', [id]);
     await c.query('COMMIT');
     res.json({ eliminado: true });
   } catch (e) { await c.query('ROLLBACK').catch(() => {}); throw e; } finally { c.release(); }
 }));
 
-/* ---------- Presentaciones ---------- */
 router.get('/presentaciones', wrap(async (req, res) => {
   const { rows } = await db.query('SELECT id,nombre,precio,activo FROM presentaciones ORDER BY precio');
   res.json({ presentaciones: rows });
@@ -98,7 +94,6 @@ router.put('/presentaciones/:id', wrap(async (req, res) => {
   res.json({ presentacion: rows[0] });
 }));
 
-/* ---------- Usuarios del personal (HU12) ---------- */
 const ROLES = ['cliente', 'cocina', 'almacen', 'admin'];
 
 router.get('/usuarios', wrap(async (req, res) => {
@@ -140,7 +135,6 @@ router.patch('/usuarios/:id', wrap(async (req, res) => {
   res.json({ usuario: rows[0] });
 }));
 
-// Restablecer la contraseña de un usuario (p. ej. personal que la olvidó): cierra todas sus sesiones
 router.patch('/usuarios/:id/password', wrap(async (req, res) => {
   const id = paramId(req), { password } = req.body || {};
   if (!id) return res.status(400).json({ error: 'Identificador inválido.' });

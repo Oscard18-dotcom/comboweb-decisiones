@@ -8,10 +8,8 @@ const base = () => process.env.PUBLIC_URL || `http://localhost:${process.env.POR
 const folio = (id) => (id == null ? '' : 'EC-' + String(id).padStart(4, '0'));
 const folioPP = (id) => 'PP-' + String(id).padStart(4, '0');
 const EMPRESA = () => process.env.EMPRESA_NOMBRE || 'EN COMBO';
-// Cantidad legible: sin ceros sobrantes (2.5, 1,500)
 const humano = (n) => Number(n).toLocaleString('es-MX', { maximumFractionDigits: 4 });
 
-// Textos de cada aviso. El asunto solo lleva el folio (nada que escriba el usuario).
 const TEXTOS = {
   'confirmacion': (f) => [`Pedido ${f} confirmado`, 'Recibimos tu pago y tu pedido quedó registrado.'],
   'En preparación': (f) => [`Tu pedido ${f} está en preparación`, 'Ya estamos preparando tu pedido.'],
@@ -27,7 +25,6 @@ function redactar(tipo, p) {
   return { asunto, texto, html };
 }
 
-// Se llama DENTRO de la transacción del cambio de estatus (q = la conexión de esa transacción)
 async function encolar(q, pedidoId, tipo) {
   const { rows } = await q.query(
     `SELECT p.id,p.cliente_id,p.fecha_entrega::text AS fecha,left(p.hora_entrega::text,5) AS hora,u.nombre,u.correo,${direccion.COLS}
@@ -40,8 +37,6 @@ async function encolar(q, pedidoId, tipo) {
     [pedidoId, rows[0].cliente_id, tipo, rows[0].correo, m.asunto, m.texto, m.html]);
 }
 
-// Reclama filas de forma atómica (SKIP LOCKED): dos procesos nunca envían el mismo correo.
-// También rescata las que quedaron "enviando" por más de 5 minutos (el servidor se cayó a media tarea).
 async function enviarPendientes({ limite = 20 } = {}) {
   const { rows } = await db.query(
     `UPDATE notificaciones SET estado='enviando', intentos=intentos+1, reclamado_en=now()
@@ -59,7 +54,6 @@ async function enviarPendientes({ limite = 20 } = {}) {
       enviadas++;
     } catch (e) {
       errores++;
-      // Reintentos con espera creciente: 1, 4, 9 y 16 minutos; al quinto fallo queda "fallida" (el administrador puede reintentarla)
       await db.query(
         `UPDATE notificaciones SET estado=$2, ultimo_error=$3, proximo_intento = now() + make_interval(mins => $4) WHERE id=$1`,
         [n.id, n.intentos >= MAX_INTENTOS ? 'fallida' : 'error', String(e.message || e).slice(0, 300), n.intentos * n.intentos]);
@@ -67,7 +61,6 @@ async function enviarPendientes({ limite = 20 } = {}) {
   }
   return { enviadas, errores };
 }
-// Disparo sin esperar: un fallo de correo NUNCA debe romper el pago ni el cambio de estatus
 const disparar = () => enviarPendientes().catch((e) => console.error('Error al enviar notificaciones:', e.message));
 
 function iniciarTrabajo(cadaMs = 60000) {
@@ -75,8 +68,6 @@ function iniciarTrabajo(cadaMs = 60000) {
   return setInterval(disparar, cadaMs).unref();
 }
 
-// ---- Pedidos a proveedor: correo al proveedor pidiendo cada insumo con su cantidad ----
-// Dentro de la transacción del pedido (q = esa conexión). tipo: 'pedido' | 'cancelacion'. responderA = correo del administrador.
 async function encolarProveedor(q, pedidoId, tipo, responderA) {
   const { rows } = await q.query(
     `SELECT pp.id,pp.nota,pp.fecha_requerida::text AS fecha,pr.nombre AS proveedor,pr.correo,pr.contacto
@@ -112,7 +103,6 @@ async function encolarProveedor(q, pedidoId, tipo, responderA) {
     [pedidoId, tipo, p.correo, asunto, texto, html, responderA || null]);
 }
 
-// Texto corto para la bandeja del cliente dentro de la página (el mismo mensaje del correo)
 const mensajeAviso = (plantilla, f) => (TEXTOS[plantilla] ? TEXTOS[plantilla](f)[1] : null);
 
 module.exports = { mensajeAviso, encolar, encolarProveedor, enviarPendientes, disparar, iniciarTrabajo, MAX_INTENTOS, folio, folioPP };

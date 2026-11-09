@@ -1,4 +1,3 @@
-// Correo real por SMTP (Gmail con contraseña de aplicación, Brevo, Mailgun, tu propio servidor, etc.)
 let transporte = null, llave = '';
 function obtenerTransporte() {
   const k = [process.env.SMTP_HOST, process.env.SMTP_PORT, process.env.SMTP_USER, process.env.SMTP_PASS].join('|');

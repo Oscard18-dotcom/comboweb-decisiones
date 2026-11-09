@@ -1,4 +1,3 @@
-// Pantallas del personal (Sprint 4): inventario (almacén y administración) y recetas con costeo (administración)
 const Personal = (() => {
   let X = null;
   const num = (n) => Number(n).toLocaleString('es-MX', { maximumFractionDigits: 4 });
@@ -7,14 +6,12 @@ const Personal = (() => {
   const e = (...a) => X.el(...a);
   const campo = (rotulo, input) => e('label', {}, rotulo, input);
   const chipC = (txt, color) => e('span', { class: 'chip', style: 'background:' + color }, txt);
-  // Maneja el envío de un formulario: muestra el error en su cuadro y evita doble clic
   const enviar = (boton, caja, fn) => async (ev) => {
     ev.preventDefault(); caja.replaceChildren(); boton.disabled = true;
     try { await fn(); } catch (er) { caja.replaceChildren(e('div', {}, er.message)); }
     boton.disabled = false;
   };
 
-  // Módulos registrables: cada archivo (inventario, recetas, cocina.js, reportes.js) agrega sus pestañas
   const modulos = [];
   const registrar = (k, nombre, roles, orden, fn) => modulos.push({ k, nombre, roles, orden, fn });
   let timers = [];
@@ -35,7 +32,6 @@ const Personal = (() => {
   }
   function detener() { limpiar(); const r = document.querySelector('#staff'); if (r) { r.replaceChildren(); r.hidden = true; } }
 
-  /* ================= INVENTARIO ================= */
   async function inventario(cont) {
     let lista = [], filtro = '', soloReorden = false, archivados = false;
     const banner = e('div', { role: 'status' }), tabla = e('div', { class: 'card tw' }), panel = e('div');
@@ -118,7 +114,6 @@ const Personal = (() => {
     await cargar();
   }
 
-  /* ================= RECETAS Y COSTEO (administración) ================= */
   async function recetas(cont) {
     let productos = [], recs = new Map(), insumos = [], sel = null;
     const izq = e('div', { class: 'card' }), der = e('div');
@@ -153,7 +148,6 @@ const Personal = (() => {
         await X.api('/admin/productos/' + p.id, { method: 'PUT', body: { nombre: n.value, descripcion: d.value, precio: pr.value } }); await cargar(p.id);
       }) }, campo('Nombre', n), campo('Descripción', d), campo('Precio de venta (MXN)', pr), errP, e('div', { class: 'row' }, bp, tog));
 
-      // Editor de la receta (estado local; se guarda con el botón)
       let ing = rec ? rec.ingredientes.map((i) => ({ insumo_id: i.insumo_id, cantidad: String(i.cantidad) })) : [];
       const rinde = e('input', { type: 'number', min: '1', max: '1000', step: '1', value: String(rec ? rec.rinde : 1), 'aria-label': 'Rinde', oninput: totales });
       const filas = e('div'), tot = e('div', { class: 'tot-box', 'aria-live': 'polite' });

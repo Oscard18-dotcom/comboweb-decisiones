@@ -1,5 +1,3 @@
-// Asistente de instalación para personas sin experiencia. Uso normal: doble clic en instalar.bat
-// Hace TODO: crea la base de datos, escribe la configuración (.env), crea las tablas y carga los datos y cuentas iniciales.
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
@@ -11,8 +9,8 @@ let pg;
 try { pg = require('pg'); } catch (e) { console.error('\nPROBLEMA - Faltan piezas del sistema. Cierre esta ventana y haga doble clic otra vez en instalar.bat.'); process.exit(1); }
 
 const BD = process.env.DB_NAME || 'comboweb', USUARIO = process.env.DB_USER || 'combo_user';
-const CLAVE_SISTEMA = process.env.SEED_PASSWORD || 'EnCombo-2026';   // contraseña inicial de las cuentas de práctica
-const CLAVE_PG_DEFECTO = 'AdminEnCombo2026';                          // la que indica la guía al instalar PostgreSQL
+const CLAVE_SISTEMA = process.env.SEED_PASSWORD || 'EnCombo-2026';
+const CLAVE_PG_DEFECTO = 'AdminEnCombo2026';
 const PUERTOS = process.env.PGPORT ? [Number(process.env.PGPORT)] : [5432, 5433];
 const linea = '='.repeat(62);
 const di = (t = '') => console.log(t);
@@ -20,7 +18,6 @@ const ok = (t) => di('  OK - ' + t);
 const problema = (t) => { di('\n  PROBLEMA - ' + t + '\n'); };
 if (!/^[a-z][a-z0-9_]{0,30}$/.test(BD) || !/^[a-z][a-z0-9_]{0,30}$/.test(USUARIO)) { problema('Nombre de base de datos o de usuario no válido.'); process.exit(1); }
 
-// Lectura de respuestas del teclado con cola: no se pierde ninguna línea aunque lleguen juntas
 const rl = readline.createInterface({ input: process.stdin });
 const cola = []; let espera = null, cerrado = false;
 rl.on('line', (l) => { if (espera) { const r = espera; espera = null; r(l.trim()); } else cola.push(l.trim()); });
@@ -62,7 +59,7 @@ async function conectarComoAdministrador() {
   const { c, puerto } = await conectarComoAdministrador();
   ok(`Se conectó a PostgreSQL (puerto ${puerto}).`);
   try {
-    const claveBD = crypto.randomBytes(18).toString('hex');            // solo letras y números: sin problemas en la dirección de conexión
+    const claveBD = crypto.randomBytes(18).toString('hex');
     const existeRol = (await c.query('SELECT 1 FROM pg_roles WHERE rolname=$1', [USUARIO])).rowCount;
     await c.query(`${existeRol ? 'ALTER' : 'CREATE'} ROLE ${USUARIO} WITH LOGIN PASSWORD '${claveBD}'`);
     ok(existeRol ? 'El usuario del sistema ya existía; se actualizó.' : 'Se creó el usuario del sistema en PostgreSQL.');
@@ -70,7 +67,6 @@ async function conectarComoAdministrador() {
     if (!existeBD) await c.query(`CREATE DATABASE ${BD} OWNER ${USUARIO}`); else await c.query(`ALTER DATABASE ${BD} OWNER TO ${USUARIO}`);
     ok(existeBD ? 'La base de datos ya existía (se conservan sus datos).' : 'Se creó la base de datos.');
 
-    // Configuración (.env). Si ya había una, se guarda una copia y se conserva su llave de seguridad.
     const rutaEnv = path.join(RAIZ, '.env'); let jwt = crypto.randomBytes(48).toString('hex');
     if (fs.existsSync(rutaEnv)) {
       const previo = fs.readFileSync(rutaEnv, 'utf8'), m = previo.match(/^JWT_SECRET=(.{32,})$/m); if (m) jwt = m[1].trim();
@@ -105,4 +101,4 @@ MAIL_PROVIDER=consola
   di('\n  Ya puede cerrar esta ventana.\n');
   rl.close();
 })().catch((e) => { problema('Ocurrió un error inesperado: ' + e.message); process.exit(1); });
-process.on('exit', () => { try { rl.close(); } catch (e) { /* ya cerrado */ } });
+process.on('exit', () => { try { rl.close(); } catch (e) {  } });

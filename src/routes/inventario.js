@@ -5,7 +5,6 @@ const { wrap, isText, paramId } = require('../util');
 
 router.use(auth, roles('almacen', 'admin'));
 
-// Número no negativo con máximo 4 decimales (null si no es válido)
 const num4 = (v) => {
   const n = Number(v);
   return v !== '' && v !== null && Number.isFinite(n) && n >= 0 && n <= 1e9 && Math.abs(n * 1e4 - Math.round(n * 1e4)) < 1e-6 ? Math.round(n * 1e4) / 1e4 : null;
@@ -25,13 +24,11 @@ async function usos(id) {
 }
 const dup = (res) => res.status(409).json({ error: 'Ya existe un insumo con ese nombre.' });
 
-/* Lista (HU07). ?inactivos=1 incluye los archivados */
 router.get('/', wrap(async (req, res) => {
   const { rows } = await db.query(SEL + ' WHERE ($1 OR i.activo) ORDER BY i.nombre', [req.query.inactivos === '1']);
   res.json({ insumos: rows.map(fmt) });
 }));
 
-/* Alertas de reorden (HU09): stock actual igual o menor al mínimo. Se calculan al momento: desaparecen solas al reponer */
 router.get('/alertas', wrap(async (req, res) => {
   const { rows } = await db.query(SEL + ' WHERE i.activo AND i.stock <= i.stock_minimo ORDER BY i.nombre');
   res.json({ alertas: rows.map(fmt) });
@@ -59,7 +56,6 @@ router.post('/', wrap(async (req, res) => {
   } finally { c.release(); }
 }));
 
-/* Editar datos. El stock NO se edita aquí: solo cambia con movimientos (queda historial) */
 router.put('/:id', wrap(async (req, res) => {
   const id = paramId(req), b = req.body || {};
   if (!id) return res.status(400).json({ error: 'Identificador inválido.' });
@@ -83,7 +79,6 @@ router.put('/:id', wrap(async (req, res) => {
   } catch (e) { if (e.code === '23505') return dup(res); throw e; }
 }));
 
-/* Movimientos: entrada (compra), salida (merma, consumo manual) y ajuste (conteo físico: se escribe el stock real) */
 router.post('/:id/movimientos', wrap(async (req, res) => {
   const id = paramId(req), { tipo, nota } = req.body || {};
   const cant = num4((req.body || {}).cantidad);
@@ -127,7 +122,6 @@ router.get('/:id/movimientos', wrap(async (req, res) => {
   res.json({ movimientos: rows.map((r) => ({ ...r, cantidad: Number(r.cantidad) })) });
 }));
 
-/* Eliminar: si está en recetas o presentaciones se avisa y NO se permite; si tiene historial se archiva; si es nuevo se borra */
 router.delete('/:id', wrap(async (req, res) => {
   const id = paramId(req);
   if (!id) return res.status(400).json({ error: 'Identificador inválido.' });

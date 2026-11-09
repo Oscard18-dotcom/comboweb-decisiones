@@ -1,6 +1,3 @@
-// Pruebas del Sprint 7 (proveedores, pedidos a proveedor, correo al proveedor y suma al stock).
-// Úsalas SOLO en tu base de desarrollo: crean datos de prueba y, al final, los borran y restauran el inventario.
-//   npm run db:init && npm run test:sprint7      (requiere SEED_PASSWORD en .env; no necesita el servidor encendido)
 const http = require('http');
 const { SMTPServer } = require('smtp-server');
 const { simpleParser } = require('mailparser');
@@ -16,7 +13,7 @@ const server = app.listen(0);
 const B = `http://localhost:${server.address().port}`;
 async function call(m, p, body, tok) {
   const r = await fetch(B + p, { method: m, headers: { 'Content-Type': 'application/json', ...(tok ? { Authorization: 'Bearer ' + tok } : {}) }, body: body === undefined ? undefined : JSON.stringify(body) });
-  let j = {}; try { j = JSON.parse(await r.text()); } catch (e) { /* sin cuerpo */ }
+  let j = {}; try { j = JSON.parse(await r.text()); } catch (e) {  }
   return { s: r.status, j };
 }
 const R = Date.now();
@@ -40,7 +37,6 @@ const stockDe = async (id) => Number((await q('SELECT stock FROM insumos WHERE i
     const leche = (await q("SELECT id FROM insumos WHERE nombre='Leche'"))[0].id;
     const cacao = (await q("SELECT id FROM insumos WHERE nombre='Cacao'"))[0].id;
 
-    // ---- Permisos: solo el administrador ----
     for (const [n, tok] of [['sin sesión', null], ['cliente', tcli], ['cocina', cocina], ['almacén', almacen]]) {
       const esperado = tok ? 403 : 401;
       for (const [m, p] of [['GET', '/api/proveedores'], ['POST', '/api/proveedores'], ['DELETE', '/api/proveedores/1'], ['GET', '/api/pedidos-proveedor'], ['POST', '/api/pedidos-proveedor'], ['POST', '/api/pedidos-proveedor/1/recibir'], ['GET', '/api/pedidos-proveedor/sugerencias']]) {
@@ -49,7 +45,6 @@ const stockDe = async (id) => Number((await q('SELECT stock FROM insumos WHERE i
       }
     }
 
-    // ---- Proveedores: alta y validaciones ----
     const nom = `Harinera Test7 ${R}`;
     let r = await call('POST', '/api/proveedores', { nombre: nom, correo: `Ventas${R}@Harinera.TEST`, contacto: 'Doña Lupe', telefono: '228 123 4567', notas: 'Entrega los martes', insumos: [harina, azucar] }, admin);
     t('alta de proveedor → 201', r.s === 201 && r.j.proveedor.nombre === nom);
@@ -67,7 +62,6 @@ const stockDe = async (id) => Number((await q('SELECT stock FROM insumos WHERE i
     r = await call('GET', '/api/proveedores', undefined, admin);
     t('lista incluye al proveedor', r.s === 200 && r.j.proveedores.some((x) => x.id === P.id));
 
-    // ---- Editar ----
     r = await call('PUT', `/api/proveedores/${P.id}`, { telefono: '55 5555 5555', insumos: [leche] }, admin);
     t('editar teléfono e insumos', r.s === 200 && r.j.proveedor.telefono === '55 5555 5555' && r.j.proveedor.insumos.length === 1 && r.j.proveedor.insumos[0].id === leche);
     t('editar no borra los campos que no se enviaron', r.j.proveedor.contacto === 'Doña Lupe' && r.j.proveedor.notas === 'Entrega los martes');
@@ -76,7 +70,6 @@ const stockDe = async (id) => Number((await q('SELECT stock FROM insumos WHERE i
     r = await call('PUT', '/api/proveedores/99999999', { nombre: 'Algo' }, admin); t('editar inexistente → 404', r.s === 404);
     r = await call('PUT', `/api/proveedores/${P.id}`, { correo: 'mal' }, admin); t('editar con correo inválido → 400', r.s === 400);
 
-    // ---- Sugerencias de reposición ----
     const insTest = (await call('POST', '/api/inventario', { nombre: `Vainilla Test7 ${R}`, unidad: 'ml', stock: 10, stock_minimo: 100, costo_unitario: 1 }, admin)).j.insumo;
     r = await call('GET', '/api/pedidos-proveedor/sugerencias', undefined, admin);
     const sug = r.j.sugerencias.find((x) => x.id === insTest.id);
@@ -88,7 +81,6 @@ const stockDe = async (id) => Number((await q('SELECT stock FROM insumos WHERE i
     t('con lista de insumos, solo sugiere los que surte el proveedor', r.s === 200 && !r.j.sugerencias.some((x) => x.id === insTest.id));
     r = await call('GET', '/api/pedidos-proveedor/sugerencias?proveedor_id=abc', undefined, admin); t('sugerencias con proveedor inválido → 400', r.s === 400);
 
-    // ---- Pedido: validaciones ----
     const hoy = svc.todayMX(), manana = svc.addDays(hoy, 1);
     const stock0 = { h: await stockDe(harina), a: await stockDe(azucar), v: await stockDe(insTest.id) };
     const base = { proveedor_id: P.id, items: [{ insumo_id: harina, cantidad: 100 }] };
@@ -104,7 +96,6 @@ const stockDe = async (id) => Number((await q('SELECT stock FROM insumos WHERE i
     }
     t('los pedidos rechazados no dejaron nada ni sumaron stock', (await q('SELECT 1 FROM pedidos_proveedor WHERE proveedor_id=$1', [P.id])).length === 0 && (await stockDe(harina)) === stock0.h && enviados.length === 0);
 
-    // ---- Pedido "al recibir" (no suma hasta marcar recibido) ----
     r = await call('POST', '/api/pedidos-proveedor', { proveedor_id: P.id, nota: 'Entregar <b>en cocina</b> & "rápido"', fecha_requerida: manana, suma_stock_en: 'recepcion', items: [{ insumo_id: harina, cantidad: 2500.5 }, { insumo_id: azucar, cantidad: 1000 }] }, admin);
     t('crear pedido → 201', r.s === 201 && r.j.pedido.estado === 'enviado' && /^PP-\d{4}$/.test(r.j.pedido.folio), JSON.stringify(r.j));
     const P1 = r.j.pedido;
@@ -130,7 +121,6 @@ const stockDe = async (id) => Number((await q('SELECT stock FROM insumos WHERE i
     r = await call('GET', `/api/inventario/${harina}/movimientos`, undefined, admin);
     t('el historial del insumo muestra el pedido a proveedor', r.s === 200 && r.j.movimientos.some((m) => m.pedido_proveedor_id === P1.id));
 
-    // ---- Pedidos concurrentes: recibir 8 veces a la vez ----
     r = await call('POST', '/api/pedidos-proveedor', { proveedor_id: P.id, suma_stock_en: 'recepcion', items: [{ insumo_id: harina, cantidad: 300 }] }, admin);
     const P2 = r.j.pedido; const antes = await stockDe(harina);
     const rs = await Promise.all(Array.from({ length: 8 }, () => call('POST', `/api/pedidos-proveedor/${P2.id}/recibir`, {}, admin)));
@@ -138,7 +128,6 @@ const stockDe = async (id) => Number((await q('SELECT stock FROM insumos WHERE i
     t('8 recepciones simultáneas: el stock se suma UNA sola vez', (await stockDe(harina)) === antes + 300);
     t('8 recepciones simultáneas: un solo movimiento', (await q('SELECT 1 FROM movimientos_inventario WHERE pedido_proveedor_id=$1', [P2.id])).length === 1);
 
-    // ---- Pedido "al enviar" (suma de inmediato) ----
     const antesV = await stockDe(insTest.id);
     r = await call('POST', '/api/pedidos-proveedor', { proveedor_id: P.id, items: [{ insumo_id: insTest.id, cantidad: 190 }] }, admin);
     const P3 = r.j.pedido;
@@ -150,7 +139,6 @@ const stockDe = async (id) => Number((await q('SELECT stock FROM insumos WHERE i
     r = await call('POST', `/api/pedidos-proveedor/${P3.id}/recibir`, {}, admin);
     t('al recibir un pedido ya sumado, no se vuelve a sumar', r.s === 200 && r.j.pedido.estado === 'recibido' && (await stockDe(insTest.id)) === antesV + 190);
 
-    // ---- Cancelar ----
     enviados.length = 0;
     r = await call('POST', '/api/pedidos-proveedor', { proveedor_id: P.id, suma_stock_en: 'recepcion', items: [{ insumo_id: azucar, cantidad: 50 }] }, admin);
     const P4 = r.j.pedido; await esperar(() => enviados.length >= 1);
@@ -162,7 +150,6 @@ const stockDe = async (id) => Number((await q('SELECT stock FROM insumos WHERE i
     const a1 = await stockDe(azucar); await call('POST', `/api/pedidos-proveedor/${P4.id}/cancelar`, {}, admin);
     t('cancelar dos veces no manda dos correos', (await q('SELECT 1 FROM notificaciones WHERE pedido_proveedor_id=$1', [P4.id])).length === 2 && (await stockDe(azucar)) === a1);
 
-    // ---- Proveedor/insumo archivado ----
     r = await call('POST', '/api/pedidos-proveedor', { proveedor_id: P.id, suma_stock_en: 'recepcion', items: [{ insumo_id: leche, cantidad: 5 }] }, admin);
     const P5 = r.j.pedido;
     r = await call('DELETE', `/api/proveedores/${P.id}`, undefined, admin);
@@ -181,13 +168,11 @@ const stockDe = async (id) => Number((await q('SELECT stock FROM insumos WHERE i
     r = await call('GET', '/api/pedidos-proveedor/99999999', undefined, admin); t('detalle inexistente → 404', r.s === 404);
     r = await call('GET', '/api/pedidos-proveedor/abc', undefined, admin); t('detalle con id inválido → 400', r.s === 400);
 
-    // proveedor sin pedidos se borra de verdad
     const PB = (await call('POST', '/api/proveedores', { nombre: `Borrable Test7 ${R}`, correo: 'b@b.co', insumos: [cacao] }, admin)).j.proveedor;
     r = await call('DELETE', `/api/proveedores/${PB.id}`, undefined, admin);
     t('un proveedor sin pedidos se elimina de verdad', r.s === 200 && r.j.eliminado === true && (await q('SELECT 1 FROM proveedores WHERE id=$1', [PB.id])).length === 0 && (await q('SELECT 1 FROM proveedor_insumos WHERE proveedor_id=$1', [PB.id])).length === 0);
     r = await call('DELETE', `/api/proveedores/${PB.id}`, undefined, admin); t('eliminar uno que ya no existe → 404', r.s === 404);
 
-    // insumos con pedidos se archivan en vez de borrarse; y quitar un insumo limpia la lista de proveedores
     const InsB = (await call('POST', '/api/inventario', { nombre: `Borrable Insumo Test7 ${R}`, unidad: 'g' }, admin)).j.insumo;
     const PC = (await call('POST', '/api/proveedores', { nombre: `Lista Test7 ${R}`, correo: 'c@c.co', insumos: [InsB.id] }, admin)).j.proveedor;
     r = await call('DELETE', `/api/inventario/${InsB.id}`, undefined, admin);
@@ -197,12 +182,10 @@ const stockDe = async (id) => Number((await q('SELECT stock FROM insumos WHERE i
     r = await call('DELETE', `/api/inventario/${InsC.id}`, undefined, admin);
     t('un insumo que ya fue pedido se archiva (no rompe el historial)', r.s === 200 && r.j.archivado === true);
 
-    // ---- Dashboard ----
     r = await call('POST', '/api/pedidos-proveedor', { proveedor_id: PC.id, suma_stock_en: 'recepcion', items: [{ insumo_id: cacao, cantidad: 10 }] }, admin);
     const P6 = r.j.pedido; r = await call('GET', '/api/reportes/dashboard', undefined, admin);
     t('el dashboard cuenta los pedidos a proveedor por recibir', r.s === 200 && r.j.pedidos_proveedor_por_recibir >= 1);
 
-    // ---- Fallo del correo: el pedido existe y el correo se reintenta ----
     modo.falla = true; enviados.length = 0;
     r = await call('POST', '/api/pedidos-proveedor', { proveedor_id: PC.id, suma_stock_en: 'recepcion', items: [{ insumo_id: cacao, cantidad: 7 }] }, admin);
     t('si el correo falla, el pedido se crea igual', r.s === 201);
@@ -216,7 +199,6 @@ const stockDe = async (id) => Number((await q('SELECT stock FROM insumos WHERE i
     r = await call('GET', '/api/notificaciones', undefined, admin);
     t('la lista de avisos muestra el folio PP-', r.j.notificaciones.some((x) => x.folio === P7.folio));
 
-    // ---- 12 pedidos a la vez ----
     const antesC = await stockDe(cacao); enviados.length = 0;
     const rr = await Promise.all(Array.from({ length: 12 }, () => call('POST', '/api/pedidos-proveedor', { proveedor_id: PC.id, items: [{ insumo_id: cacao, cantidad: 2 }] }, admin)));
     t('12 pedidos simultáneos: todos se crean', rr.every((x) => x.s === 201), rr.map((x) => x.s).join());
@@ -224,7 +206,6 @@ const stockDe = async (id) => Number((await q('SELECT stock FROM insumos WHERE i
     await esperar(() => enviados.length >= 12, 6000);
     t('12 pedidos simultáneos: 12 correos, ni uno repetido', enviados.length === 12 && new Set(enviados.map((m) => m.asunto)).size === 12);
 
-    // ---- Correo real por SMTP: el Reply-To llega de verdad ----
     const recibidos = [];
     const srv = new SMTPServer({ authOptional: true, disabledCommands: ['STARTTLS'], onData(stream, sess, cb) { simpleParser(stream).then((m) => { recibidos.push(m); cb(); }, cb); } });
     await new Promise((ok) => srv.listen(0, '127.0.0.1', ok)); smtps.push(srv);
@@ -236,7 +217,6 @@ const stockDe = async (id) => Number((await q('SELECT stock FROM insumos WHERE i
     t('SMTP real: el correo llega al proveedor', !!mr && mr.to.value[0].address === 'c@c.co');
     t('SMTP real: trae Reply-To del administrador', mr && mr.replyTo && mr.replyTo.value[0].address === 'admin@encombo.test');
     t('SMTP real: el cuerpo lista el insumo y la cantidad', mr && /Cacao: 4 g/.test(mr.text) && /Cacao/.test(mr.html));
-    // ---- Resend (API HTTPS) ----
     const cuerpos = [];
     const api = http.createServer((rq, rs) => { let d = ''; rq.on('data', (c) => d += c); rq.on('end', () => { cuerpos.push(JSON.parse(d)); rs.end('{}'); }); });
     await new Promise((ok) => api.listen(0, '127.0.0.1', ok));
@@ -245,7 +225,6 @@ const stockDe = async (id) => Number((await q('SELECT stock FROM insumos WHERE i
     const cr = await esperar(() => cuerpos[0]);
     t('Resend: se manda reply_to del administrador', !!cr && cr.reply_to === 'admin@encombo.test' && cr.to[0] === 'c@c.co');
     api.close(); Object.assign(process.env, env0); delete process.env.MAIL_API_URL;
-    // Los correos a clientes siguen sin reply_to
     mail.reemplazar({ nombre: 'prueba', async enviar(m) { enviados.push(m); } });
     t('la bandeja separa pedidos de clientes y de proveedores (restricción de la base)', await db.query("INSERT INTO notificaciones(plantilla,destinatario,asunto,cuerpo_texto,cuerpo_html) VALUES('x','a@b.co','x','x','x')").then(() => false, () => true));
   } catch (e) {

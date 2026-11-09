@@ -1,5 +1,3 @@
-// Bandeja de notificaciones del cliente dentro de la página: confirmación del pedido y cada cambio de estatus.
-// Usa los mismos avisos que se mandan por correo, así que aunque el correo falle o no esté configurado, el cliente los ve aquí.
 const router = require('express').Router();
 const db = require('../db');
 const { auth, roles } = require('../middleware/auth');
@@ -20,7 +18,6 @@ router.get('/', wrap(async (req, res) => {
   });
 }));
 
-// Solo el contador (la pantalla lo consulta cada pocos segundos para mostrar el globo con el número)
 router.get('/contador', wrap(async (req, res) => {
   res.json({ no_leidas: (await db.query(`SELECT count(*)::int AS n FROM notificaciones WHERE ${DONDE} AND leida_en IS NULL`, [req.user.id])).rows[0].n });
 }));

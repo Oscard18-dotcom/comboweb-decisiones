@@ -1,4 +1,3 @@
-// Pedidos a proveedor y proveedores (Sprint 7). Solo administración.
 (() => {
   const fd = (f) => (f ? f.split('-').reverse().join('/') : '—');
 
@@ -15,14 +14,12 @@
     SUBS.forEach(([k, n]) => nav.append(e('button', { type: 'button', 'data-s': k, onclick: () => ir(k) }, n)));
     cont.append(e('h2', {}, 'Pedidos a proveedor'), nav, panel);
 
-    // Confirmación en pantalla (sin ventanas emergentes): devuelve una tarjeta con Sí / No
     const confirmar = (mensaje, etiqueta, fn, cancelar) => {
       const err = caja(), si = e('button', { class: 'btn', type: 'button' }, etiqueta), no = e('button', { class: 'btn s', type: 'button', onclick: cancelar }, 'No, volver');
       si.onclick = enviar(si, err, fn);
       return e('div', { class: 'card', role: 'alertdialog' }, e('p', {}, mensaje), err, e('div', { class: 'row' }, si, no));
     };
 
-    /* ===================== PEDIDOS ENVIADOS ===================== */
     async function pedidos() {
       let filtro = '', lista = [];
       const detalle = e('div'), tabla = e('div'), msg = e('div');
@@ -62,7 +59,6 @@
       await cargar();
     }
 
-    /* ===================== NUEVO PEDIDO ===================== */
     async function nuevo() {
       let provs, insumos;
       try { [provs, insumos] = await Promise.all([api('/proveedores'), api('/inventario')]); } catch (er) { panel.append(e('p', { class: 'err' }, er.message)); return; }
@@ -120,7 +116,6 @@
       panel.append(e('div', { class: 'card' }, f));
     }
 
-    /* ===================== PROVEEDORES ===================== */
     async function prov() {
       let lista = [], insumos = [], archivados = false;
       const tabla = e('div'), form = e('div');

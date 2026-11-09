@@ -63,7 +63,7 @@ td{padding:6px 8px;border-bottom:1px solid var(--ln);vertical-align:middle}
 .ing{display:grid;grid-template-columns:1fr 110px 36px auto;gap:6px;align-items:center;margin-bottom:6px}
 .u{font-size:13px}
 .tot-box{background:var(--sel);border-radius:8px;padding:8px 12px;margin:10px 0}
-/* Tablero de cocina */
+
 .kb{display:grid;grid-template-columns:repeat(4,minmax(210px,1fr));gap:10px;overflow-x:auto;margin:10px 0}
 .col{background:rgba(106,97,65,.14);border-radius:10px;padding:8px;min-width:210px}
 .oc{background:var(--card);border:1px solid var(--ln);border-radius:8px;padding:10px;margin-top:8px;display:flex;flex-direction:column;gap:4px;cursor:pointer;font-size:14px}
@@ -74,16 +74,16 @@ td{padding:6px 8px;border-bottom:1px solid var(--ln);vertical-align:middle}
 .ficha dl{display:grid;grid-template-columns:130px 1fr;gap:4px 10px;margin:8px 0}.ficha dt{color:var(--mu)}.ficha dd{margin:0}
 .ficha .ded{font-size:17px;display:block;margin:6px 0}
 @media(max-width:700px){.kb{grid-template-columns:1fr;overflow-x:visible}.col{min-width:0}}
-/* Seguimiento del pedido */
+
 .tl{display:flex;gap:6px;margin:10px 0}
 .tl div{flex:1;text-align:center;font-size:12px;display:flex;flex-direction:column;align-items:center;gap:2px}
 .tl i{display:block;width:22px;height:22px;border-radius:50%;background:var(--ln);color:#fff;font-style:normal;line-height:22px}
 .tl small{font-size:10px}
-/* Dashboard */
+
 .kp{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:12px}
 .kp b{font-size:22px;display:block}
 .grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px;margin-bottom:12px}
-/* Tablas contables (estilo Excel contable mexicano): cifras a la derecha, $ alineado a la izquierda de la celda, totales con raya */
+
 .contable{border-collapse:collapse;width:100%;font-size:14px;font-variant-numeric:tabular-nums}
 .contable th{background:var(--bar);color:var(--bar-tx);font-weight:600;padding:7px 10px;text-align:left}
 .contable th.n,.contable td.n{text-align:right}
@@ -94,7 +94,6 @@ td{padding:6px 8px;border-bottom:1px solid var(--ln);vertical-align:middle}
 .reporte-tit{text-align:center;margin:6px 0 10px}
 @media print{header,#armar,#mis,#auth,#catalogo,.noprint{display:none!important}body{background:#fff;color:#000}.ok{border:1px solid #000}.contable th{background:#eee;color:#000}.card{border:0;padding:0}}
 
-/* Sprint 7: pedidos a proveedor */
 .lista-insumos{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:4px 12px;border:1px solid var(--ln);border-radius:8px;padding:8px 10px;max-height:190px;overflow:auto;margin-bottom:10px}
 .lista-insumos .chk{margin:0}
 .lp{display:grid;grid-template-columns:minmax(0,1fr) 120px 40px 36px;gap:6px;align-items:center;margin-bottom:6px}
@@ -104,10 +103,9 @@ td{padding:6px 8px;border-bottom:1px solid var(--ln);vertical-align:middle}
 .aviso{background:var(--sel);border:1px solid var(--ln);border-radius:8px;padding:8px 12px;margin:8px 0}
 .opt-radio{display:flex;flex-direction:row;gap:8px;align-items:flex-start;color:var(--tx);font-size:14px;margin:4px 0}
 
-/* Texto que queda directamente sobre el fondo (#917A79): más oscuro para que se lea bien */
 .filtros,.filtros label,.filtros .chk{color:var(--tx2)}
 main>p,main>small,main>.mu{color:var(--tx2)}
-/* Sprint 9 (legibilidad): todo texto de apoyo que queda sobre el fondo #917A79 va en el marrón más oscuro; dentro de tarjetas (fondo claro) conserva su tono suave */
+
 main .mu,main small,main h3,main dt{color:var(--tx2)}
 .card .mu,.card small,.ok .mu,.ok small,.item small,.oc small,.aviso .mu,.aviso small,.tot-box small,.tw small,.tw .mu,.ficha dt,.ficha-dl dt,.opt small{color:var(--mu)}
 .card h3,.ok h3{color:var(--tx)}
@@ -115,7 +113,6 @@ main .mu,main small,main h3,main dt{color:var(--tx2)}
 .col .mu,.kb>.mu,.col small{color:var(--tx2)}.col .oc small,.col .oc .mu{color:var(--mu)}
 .errbox,.alerta{color:#8C1D18}
 
-/* Sprint 9: dirección de entrega */
 .dir-grid{display:grid;grid-template-columns:1fr 1fr;gap:0 12px;align-items:start}
 .dir-grid .wide{grid-column:1 / -1}
 .dir-grid label[hidden]{display:none}
@@ -123,16 +120,14 @@ main .mu,main small,main h3,main dt{color:var(--tx2)}
 .dir-grid input,.dir-grid select{width:100%}
 @media(max-width:560px){.dir-grid{grid-template-columns:1fr}}
 .oc .dir{font-size:13px;color:var(--mu)}
-/* Mensajes de error y de éxito: llevan su propio fondo claro, así se leen sobre cualquier superficie */
+
 .err:not(:empty){background:var(--errbg);border:1px solid var(--err);border-radius:6px;padding:6px 10px;color:#8C1D18}
 .okmsg:not(:empty){background:var(--card);border:1px solid var(--ok);border-radius:6px;padding:6px 10px;color:var(--ok)}
 
-/* Notificaciones del cliente */
 .badge{display:inline-block;min-width:18px;padding:0 6px;margin-left:4px;border-radius:10px;background:var(--bar-hi);color:var(--bar);font-size:12px;font-weight:700;line-height:18px;text-align:center}
 .badge[hidden]{display:none}
 .aviso-n.nueva{border-left:5px solid var(--pri);background:var(--sel)}
 
-/* Toma de decisiones */
 .dec-tabla{width:100%}
 .dec-tabla input[type=number]{width:120px;max-width:100%}
 .dec-tabla td.n{text-align:right;font-variant-numeric:tabular-nums}
@@ -144,3 +139,5 @@ main .mu,main small,main h3,main dt{color:var(--tx2)}
 details summary{cursor:pointer;font-weight:600;margin:8px 0}
 .card details ul{margin:6px 0 0 18px;padding:0}
 @media (max-width:600px){.voto{grid-template-columns:1fr auto}.voto .barra{grid-column:1 / -1;order:3}}
+
+.enlace{background:none;border:0;padding:0;color:var(--tx2);text-decoration:underline;cursor:pointer;font:inherit}

@@ -1,6 +1,3 @@
-// Pruebas del Sprint 3 (pedidos, validaciones, pago simulado y webhook de Stripe).
-// Úsalas SOLO en tu base de desarrollo: crean datos de prueba y, al final, los borran y restauran el inventario.
-//   npm run test:sprint3        (requiere SEED_PASSWORD en .env y el esquema actualizado con npm run db:init)
 const { execFileSync } = require('child_process');
 const app = require('../src/app');
 const db = require('../src/db');
@@ -14,7 +11,7 @@ const server = app.listen(0);
 const B = `http://localhost:${server.address().port}`;
 async function call(m, p, body, tok) {
   const r = await fetch(B + p, { method: m, headers: { 'Content-Type': 'application/json', ...(tok ? { Authorization: 'Bearer ' + tok } : {}) }, body: body === undefined ? undefined : JSON.stringify(body) });
-  let j = {}; try { j = await r.json(); } catch (e) { /* sin cuerpo */ }
+  let j = {}; try { j = await r.json(); } catch (e) {  }
   return { s: r.status, j };
 }
 const R = Date.now();
@@ -39,7 +36,6 @@ const hay = (r, codigo) => (r.j.errores || []).some((e) => e.codigo === codigo);
     const nuevoCheckout = async (tok, o) => { const r = await call('POST', '/api/pedidos/checkout', combo(o), tok); return r; };
     const aprobar = (id, tok) => call('POST', `/api/pagos/simulado/${id}/aprobar`, undefined, tok);
 
-    /* ----- Disponibilidad y cotización ----- */
     let r = await call('GET', `/api/pedidos/disponibilidad?fecha=${dia(0)}`);
     t('disponibilidad: 10 horarios, todos libres', r.s === 200 && r.j.horarios.length === 10 && r.j.horarios.every((h) => h.disponible));
     r = await call('GET', '/api/pedidos/disponibilidad?fecha=2026-13-45'); t('disponibilidad: fecha inválida → 400', r.s === 400);
@@ -64,20 +60,17 @@ const hay = (r, codigo) => (r.j.errores || []).some((e) => e.codigo === codigo);
     r = await call('POST', '/api/pedidos/cotizar', combo({ items: [{ producto_id: inact, cantidad: 1 }] })); t('producto inactivo no se puede pedir', hay(r, 'producto_no_disponible'));
     r = await call('POST', '/api/pedidos/cotizar', combo({ items: [{ producto_id: sinRec, cantidad: 1 }] })); t('producto activo sin receta no se puede pedir', hay(r, 'producto_sin_receta'));
 
-    /* ----- Insumos (extensión 8.a) ----- */
     await db.query("UPDATE insumos SET stock=30 WHERE nombre='Café molido'");
-    r = await call('POST', '/api/pedidos/cotizar', combo()); // 2 lattes necesitan 36 g
+    r = await call('POST', '/api/pedidos/cotizar', combo());
     t('stock insuficiente: avisa qué insumo falta (ext. 8.a)', !r.j.ok && hay(r, 'stock_insuficiente') && r.j.errores[0].insumos.includes('Café molido') && r.j.detalle.total === 265);
     r = await call('POST', '/api/pedidos/cotizar', combo({ items: [{ producto_id: P('Café latte'), cantidad: 1 }] })); t('con stock justo (18 g de 30) sí se puede', r.j.ok);
-    await db.query("UPDATE insumos SET stock=(SELECT stock FROM insumos WHERE nombre='Café molido') WHERE false"); // no-op
+    await db.query("UPDATE insumos SET stock=(SELECT stock FROM insumos WHERE nombre='Café molido') WHERE false");
     for (const s of stock0) await db.query('UPDATE insumos SET stock=$2 WHERE id=$1', [s.id, s.stock]);
 
-    /* ----- Checkout: permisos ----- */
     r = await call('POST', '/api/pedidos/checkout', combo()); t('checkout sin sesión → 401', r.s === 401);
     r = await call('POST', '/api/pedidos/checkout', combo(), admin); t('checkout con rol admin → 403 (solo clientes compran)', r.s === 403);
     r = await call('POST', '/api/pedidos/checkout', combo({ hora: '03:00' }), tA); t('checkout con datos inválidos → 422 con mensaje', r.s === 422 && r.j.error);
 
-    /* ----- Flujo completo con pago simulado ----- */
     const antes = {}; for (const n of ['Harina', 'Azúcar', 'Mantequilla', 'Café molido', 'Leche', 'Caja mediana']) antes[n] = await stock(n);
     r = await nuevoCheckout(tA);
     t('checkout creado con enlace de pago', r.s === 201 && r.j.checkout_id && r.j.url.includes('pago-simulado'));
@@ -100,7 +93,6 @@ const hay = (r, codigo) => (r.j.errores || []).some((e) => e.codigo === codigo);
     r = await call('GET', '/api/pedidos', undefined, tA); t('mis pedidos: solo los propios', r.j.pedidos.length === 1 && r.j.pedidos[0].id === pid1);
     r = await call('GET', '/api/pedidos', undefined, tB); t('mis pedidos de B: vacío', r.j.pedidos.length === 0);
 
-    /* ----- Horario ocupado (extensión 10.a) ----- */
     r = await call('POST', '/api/pedidos/cotizar', combo({ items: [{ producto_id: P('Galleta'), cantidad: 2 }] }));
     t('1 pedido en el horario: aún hay lugar (capacidad 2)', r.j.ok);
     r = await nuevoCheckout(tB, { items: [{ producto_id: P('Galleta'), cantidad: 2 }] }); const ck2 = r.j.checkout_id;
@@ -110,16 +102,14 @@ const hay = (r, codigo) => (r.j.errores || []).some((e) => e.codigo === codigo);
     r = await nuevoCheckout(tA, { items: [{ producto_id: P('Galleta'), cantidad: 2 }] }); t('checkout en horario lleno → 422', r.s === 422);
     r = await call('GET', `/api/pedidos/disponibilidad?fecha=${dia(0)}`); t('disponibilidad refleja 12:00 ocupado', r.j.horarios.find((h) => h.hora === '12:00').disponible === false && r.j.horarios.find((h) => h.hora === '13:00').disponible === true);
 
-    /* ----- Pago rechazado ----- */
     const antesR = await stock('Harina');
     r = await nuevoCheckout(tA, { fecha: dia(1) }); const ck3 = r.j.checkout_id;
     r = await call('POST', `/api/pagos/simulado/${ck3}/rechazar`, undefined, tA); t('pago rechazado', r.j.estado === 'rechazado');
     r = await aprobar(ck3, tA); t('un pago rechazado ya no se puede aprobar', r.j.estado === 'rechazado' && !r.j.pedido_id);
     t('rechazo: sin pedido y sin tocar inventario', (await stock('Harina')) === antesR && (await q('SELECT count(*)::int n FROM pedidos WHERE fecha_entrega=$1', [dia(1)]))[0].n === 0);
 
-    /* ----- Dos pagos compitiendo por el último stock ----- */
     for (const s of stock0) await db.query('UPDATE insumos SET stock=$2 WHERE id=$1', [s.id, s.stock]);
-    await db.query("UPDATE insumos SET stock=36 WHERE nombre='Café molido'"); // alcanza para UN combo con 2 lattes
+    await db.query("UPDATE insumos SET stock=36 WHERE nombre='Café molido'");
     const latte2 = [{ producto_id: P('Café latte'), cantidad: 2 }];
     const a = (await nuevoCheckout(tA, { items: latte2, fecha: dia(2) })).j.checkout_id, b = (await nuevoCheckout(tB, { items: latte2, fecha: dia(3) })).j.checkout_id;
     const [ra, rb] = await Promise.all([aprobar(a, tA), aprobar(b, tB)]);
@@ -128,7 +118,6 @@ const hay = (r, codigo) => (r.j.errores || []).some((e) => e.codigo === codigo);
     t('el stock nunca queda negativo', (await stock('Café molido')) === 0);
     t('el pago en revisión no crea pedido', (await q('SELECT count(*)::int n FROM pedidos WHERE fecha_entrega = ANY($1)', [[dia(2), dia(3)]]))[0].n === 1);
 
-    /* ----- Tres pagos compitiendo por el mismo horario (capacidad 2) ----- */
     for (const s of stock0) await db.query('UPDATE insumos SET stock=$2 WHERE id=$1', [s.id, s.stock]);
     const gal = [{ producto_id: P('Galleta'), cantidad: 1 }];
     const ids3 = []; for (let i = 0; i < 3; i++) ids3.push((await nuevoCheckout(tA, { items: gal, fecha: dia(4), hora: '15:00' })).j.checkout_id);
@@ -137,7 +126,6 @@ const hay = (r, codigo) => (r.j.errores || []).some((e) => e.codigo === codigo);
     t('3 pagos simultáneos en un horario de capacidad 2: 2 pagados y 1 a revisión', e3.join() === 'pagado,pagado,revision', e3.join());
     t('el horario queda con exactamente 2 pedidos', (await q('SELECT count(*)::int n FROM pedidos WHERE fecha_entrega=$1 AND hora_entrega=$2', [dia(4), '15:00']))[0].n === 2);
 
-    /* ----- Webhook de Stripe (verificación de firma real; sin llamar a Stripe) ----- */
     process.env.PAYMENT_PROVIDER = 'stripe'; process.env.STRIPE_SECRET_KEY = 'sk_test_falsa'; process.env.STRIPE_WEBHOOK_SECRET = SECRET;
     pagos.reemplazar({ nombre: 'stripe', crearSesion: async ({ checkoutId }) => ({ url: 'https://checkout.stripe.test/' + checkoutId, referencia: 'cs_test_' + checkoutId }) });
     r = await aprobar(ck1, tA); t('endpoints simulados responden 404 cuando el proveedor es Stripe', r.s === 404);
@@ -173,7 +161,6 @@ const hay = (r, codigo) => (r.j.errores || []).some((e) => e.codigo === codigo);
     const pl7 = evento('charge.refunded', { id: 'ch_1' });
     t('eventos que no usamos → 200', (await hook(pl7, firmar(pl7))) === 200);
 
-    /* ----- Seguridad de configuración ----- */
     process.env.PAYMENT_PROVIDER = 'simulado'; pagos.reemplazar(null);
     const tk = (await nuevoCheckout(tA, { fecha: dia(10) })).j.checkout_id;
     process.env.NODE_ENV = 'production';

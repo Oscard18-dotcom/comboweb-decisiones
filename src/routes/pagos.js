@@ -1,4 +1,3 @@
-// Endpoints de la pasarela SIMULADA (solo desarrollo; responden 404 si no está activa o en producción)
 const router = require('express').Router();
 const db = require('../db');
 const { auth, roles } = require('../middleware/auth');
