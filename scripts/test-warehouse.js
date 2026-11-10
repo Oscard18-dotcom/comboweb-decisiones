@@ -33,7 +33,7 @@ const R = Date.now();
     t('combos: cada combo definido se reconoce por sus dos productos, en cualquier orden', comboDe(['Galleta', 'Té chai']).nombre === 'Combo Otoño' && comboDe(['Brownie', 'Café latte']).nombre === 'Combo Navideño' && comboDe(['Café latte', 'Cupcake']).nombre === 'Combo San Valentín' && comboDe(['Café americano', 'Galleta']).nombre === 'Combo Regreso a clases');
     t('combos: cualquier otra mezcla es "Combo personalizado"', comboDe(['Galleta']).nombre === 'Combo personalizado' && comboDe(['Galleta', 'Té chai', 'Brownie']).nombre === 'Combo personalizado' && comboDe(['Brownie', 'Cupcake']).nombre === 'Combo personalizado' && comboDe([]).nombre === 'Combo personalizado');
 
-    const cat = (await call('GET', '/api/catalogo')).j, prod = (n) => cat.productos.find((p) => p.nombre === n), pres = cat.presentaciones.find((x) => x.nombre === 'Caja mediana');
+    const cat = (await call('GET', '/api/catalogo')).j, prod = (n) => cat.productos.find((p) => p.nombre === n), pres = { id: undefined };
     const DIR = { cp: '91190', colonia: 'Las Flores', calle: 'Calle DW', num_ext: '1' };
     const pedir = async (items, dias, hora) => {
       const fecha = svc.addDays(svc.todayMX(), dias);
@@ -53,9 +53,9 @@ const R = Date.now();
     t('cargar dos veces no duplica los hechos (idempotente)', (await q('SELECT count(*)::int AS n FROM dw.fact_ventas WHERE pedido_id=$1', [p1.id]))[0].n === 1);
     const hu = await q(`SELECT (SELECT count(*) FROM dw.fact_ventas f LEFT JOIN dw.dim_fecha d USING(fecha_key) WHERE d.fecha_key IS NULL)::int AS a,
       (SELECT count(*) FROM dw.fact_ventas f LEFT JOIN dw.dim_combo d USING(combo_key) WHERE d.combo_key IS NULL)::int AS b,
-      (SELECT count(*) FROM dw.fact_ventas f LEFT JOIN dw.dim_presentacion d USING(presentacion_key) WHERE d.presentacion_key IS NULL)::int AS c`);
+      0::int AS c`);
     t('integridad: ningún hecho sin su dimensión', hu[0].a === 0 && hu[0].b === 0 && hu[0].c === 0);
-    t('ya no existen las tablas de zona ni de producto en el almacén', (await q("SELECT count(*)::int AS n FROM information_schema.tables WHERE table_schema='dw' AND table_name IN ('dim_zona','dim_producto')"))[0].n === 0);
+    t('ya no existen las tablas de zona, producto ni presentación en el almacén', (await q("SELECT count(*)::int AS n FROM information_schema.tables WHERE table_schema='dw' AND table_name IN ('dim_zona','dim_producto','dim_presentacion')"))[0].n === 0);
 
     const antesPedidos = (await q('SELECT count(*)::int AS n FROM pedidos'))[0].n;
     r = await call('POST', '/api/warehouse/cargar', { demo: true }, admin);
@@ -96,9 +96,9 @@ const R = Date.now();
 
     r = await call('GET', '/api/warehouse/exportar', undefined, admin);
     const nombres = (r.j.archivos || []).map((a) => a.nombre).sort();
-    t('exportar → 4 archivos CSV (3 dimensiones + hechos)', nombres.join() === 'dw_dim_combo.csv,dw_dim_fecha.csv,dw_dim_presentacion.csv,dw_fact_ventas.csv', nombres.join());
+    t('exportar → 3 archivos CSV (2 dimensiones + hechos)', nombres.join() === 'dw_dim_combo.csv,dw_dim_fecha.csv,dw_fact_ventas.csv', nombres.join());
     const hechos = r.j.archivos.find((a) => a.nombre === 'dw_fact_ventas.csv').contenido.trim().split('\n');
-    t('CSV de hechos: encabezado y una fila por pedido', hechos[0] === 'venta_id,fecha_key,combo_key,presentacion_key,pedido_id,cantidad,ingreso,costo' && hechos.length - 1 === (await q('SELECT count(*)::int AS n FROM dw.fact_ventas'))[0].n);
+    t('CSV de hechos: encabezado y una fila por pedido', hechos[0] === 'venta_id,fecha_key,combo_key,pedido_id,cantidad,ingreso,costo' && hechos.length - 1 === (await q('SELECT count(*)::int AS n FROM dw.fact_ventas'))[0].n);
     t('CSV de combos con sus productos', r.j.archivos.find((a) => a.nombre === 'dw_dim_combo.csv').contenido.includes('Combo Navideño,Café latte + Brownie'));
 
     r = await call('DELETE', '/api/warehouse/demo', undefined, admin);

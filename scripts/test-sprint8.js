@@ -66,7 +66,7 @@ async function arrancar(env, puerto) {
     r = await call('DELETE', `/api/admin/productos/${Bp.p.id}`, undefined, admin); t('eliminar un producto que no tiene receta', r.s === 200 && r.j.eliminado === true);
     const V = await nuevo(`Test8 Con ventas ${R}`);
     await call('PATCH', `/api/admin/productos/${V.p.id}/activo`, { activo: true }, admin);
-    const cat = (await call('GET', '/api/catalogo')).j; const pres = cat.presentaciones.find((x) => x.nombre === 'Caja mediana').id;
+    const cat = (await call('GET', '/api/catalogo')).j; const pres = undefined;
     const dia = svc.addDays(svc.todayMX(), 25 + Math.floor(Math.random() * 30));
     const ck = await call('POST', '/api/pedidos/checkout', { items: [{ producto_id: V.p.id, cantidad: 1 }], presentacion_id: pres, fecha: dia, hora: '12:00', direccion: { cp: '91190', colonia: 'Las Flores', calle: 'Calle de Prueba', num_ext: '12' } }, cli);
     const pago = ck.s === 201 ? await call('POST', `/api/pagos/simulado/${ck.j.checkout_id}/aprobar`, undefined, cli) : ck;

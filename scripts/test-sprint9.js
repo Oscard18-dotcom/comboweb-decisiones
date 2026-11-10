@@ -29,7 +29,7 @@ const q = async (sql, p) => (await db.query(sql, p)).rows;
     const admin = await login('admin@encombo.test'), cocina = await login('cocina@encombo.test');
     const mk = async (n) => { const r = await call('POST', '/api/auth/register', { nombre: 'Cliente P9' + n, correo: `p9${n}${R}@prueba.test`, password: 'secreta123' }); clientes.push(r.j.usuario.id); return r.j.token; };
     const cli = await mk('a'), otro = await mk('b');
-    const cat = (await call('GET', '/api/catalogo')).j, gal = cat.productos.find((p) => p.nombre === 'Galleta').id, pres = cat.presentaciones.find((x) => x.nombre === 'Caja mediana').id;
+    const cat = (await call('GET', '/api/catalogo')).j, gal = cat.productos.find((p) => p.nombre === 'Galleta').id, pres = undefined;
     const base = 30 + Math.floor(Math.random() * 40); let k = 0;
     const dia = () => svc.addDays(svc.todayMX(), base + (k++));
     const DIR = { cp: '91190', colonia: 'Las Flores', calle: 'Calle de Prueba', num_ext: '12', num_int: '3', referencias: 'Portón negro' };
@@ -126,7 +126,7 @@ const q = async (sql, p) => (await db.query(sql, p)).rows;
 
     const html = fs.readFileSync(path.join(ROOT, 'public', 'index.html'), 'utf8'), css = fs.readFileSync(path.join(ROOT, 'public', 'styles.css'), 'utf8'), appjs = fs.readFileSync(path.join(ROOT, 'public', 'app.js'), 'utf8');
     t('la página ya no trae el cartel “Sitio de demostración”', !/Sitio de demostración/.test(html) && !/id="demo"/.test(html) && !appjs.includes('#demo'));
-    t('el formulario pide la dirección después de la fecha y hora (paso 5)', appjs.indexOf("'4. Fecha y hora de entrega'") < appjs.indexOf("'5. Dirección de entrega'"));
+    t('el formulario pide la dirección después de la fecha y hora (paso 5)', appjs.indexOf("'3. Fecha y hora de entrega'") < appjs.indexOf("'4. Dirección de entrega'"));
     t('la hoja de estilos no tiene modo oscuro automático (se conserva el diseño claro)', !/prefers-color-scheme/.test(css));
   } catch (e) {
     fail++; console.log('FAIL error inesperado:', e && e.stack || e);

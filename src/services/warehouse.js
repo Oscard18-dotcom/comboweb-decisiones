@@ -35,7 +35,6 @@ const num = (x) => Number(x || 0);
 const r2 = (n) => Math.round(Number(n) * 100) / 100;
 
 async function refrescarDimensiones(c) {
-  await c.query('INSERT INTO dw.dim_presentacion(presentacion_id,nombre) SELECT id, nombre FROM presentaciones ON CONFLICT (presentacion_id) DO UPDATE SET nombre=EXCLUDED.nombre');
   for (const k of TODOS)
     await c.query('INSERT INTO dw.dim_combo(clave,nombre,productos) VALUES($1,$2,$3) ON CONFLICT (clave) DO UPDATE SET nombre=EXCLUDED.nombre, productos=EXCLUDED.productos',
       [k.clave, k.nombre, k.productos.length ? k.productos.join(' + ') : 'A elección del cliente']);
@@ -46,7 +45,7 @@ async function cargarPedidos(c) {
   await c.query('DELETE FROM dw.fact_ventas');
   const { rows } = await c.query(`
     SELECT p.id, to_char((p.creado_en AT TIME ZONE ${TZ})::date,'YYYYMMDD')::int AS fkey, to_char((p.creado_en AT TIME ZONE ${TZ})::date,'YYYY-MM-DD') AS f,
-           p.presentacion_id, p.total,
+           p.total,
            (SELECT COALESCE(sum(cantidad),0) FROM pedido_items WHERE pedido_id=p.id)::int AS piezas,
            (SELECT array_agg(DISTINCT pr.nombre) FROM pedido_items pi JOIN productos pr ON pr.id=pi.producto_id WHERE pi.pedido_id=p.id) AS productos,
            COALESCE((SELECT sum(m.cantidad*i.costo_unitario) FROM movimientos_inventario m JOIN insumos i ON i.id=m.insumo_id WHERE m.pedido_id=p.id AND m.tipo='salida'),0) AS costo
@@ -56,12 +55,11 @@ async function cargarPedidos(c) {
   const aDate = (t) => { const [y, m, d] = t.split('-').map(Number); return new Date(Date.UTC(y, m - 1, d)); };
   await asegurarFechas(c, aDate(fechas[0]), aDate(fechas[fechas.length - 1]));
   const combos = Object.fromEntries((await c.query('SELECT combo_key, clave FROM dw.dim_combo')).rows.map((x) => [x.clave, x.combo_key]));
-  const pres = Object.fromEntries((await c.query('SELECT presentacion_key, presentacion_id FROM dw.dim_presentacion')).rows.map((x) => [x.presentacion_id, x.presentacion_key]));
-  const filas = rows.filter((x) => x.piezas > 0).map((x) => [x.fkey, combos[comboDe(x.productos || []).clave], pres[x.presentacion_id], x.id, x.piezas, x.total, x.costo]);
+  const filas = rows.filter((x) => x.piezas > 0).map((x) => [x.fkey, combos[comboDe(x.productos || []).clave], x.id, x.piezas, x.total, x.costo]);
   for (let i = 0; i < filas.length; i += 500) {
     const lote = filas.slice(i, i + 500), params = [];
-    const v = lote.map((f, k) => { params.push(...f); return '(' + f.map((_, j) => '$' + (k * 7 + j + 1)).join(',') + ')'; }).join(',');
-    await c.query(`INSERT INTO dw.fact_ventas(fecha_key,combo_key,presentacion_key,pedido_id,cantidad,ingreso,costo) VALUES ${v}`, params);
+    const v = lote.map((f, k) => { params.push(...f); return '(' + f.map((_, j) => '$' + (k * 6 + j + 1)).join(',') + ')'; }).join(',');
+    await c.query(`INSERT INTO dw.fact_ventas(fecha_key,combo_key,pedido_id,cantidad,ingreso,costo) VALUES ${v}`, params);
   }
   return filas.length;
 }
@@ -126,14 +124,12 @@ const csv = (cols, rows) => [cols.join(','), ...rows.map((r) => cols.map((c) => 
 async function exportar() {
   const q = async (sql) => (await db.query(sql)).rows;
   const f = await q("SELECT fecha_key, to_char(fecha,'YYYY-MM-DD') AS fecha, anio, trimestre, mes, nombre_mes, dia, dia_semana, nombre_dia, es_fin_semana, temporada FROM dw.dim_fecha WHERE fecha_key IN (SELECT DISTINCT fecha_key FROM dw.fact_ventas) ORDER BY fecha_key");
-  const pr = await q('SELECT presentacion_key, presentacion_id, nombre FROM dw.dim_presentacion ORDER BY presentacion_key');
   const cb = await q('SELECT combo_key, clave, nombre, productos FROM dw.dim_combo ORDER BY combo_key');
-  const h = await q('SELECT id AS venta_id, fecha_key, combo_key, presentacion_key, pedido_id, cantidad, ingreso, round(costo,2) AS costo FROM dw.fact_ventas ORDER BY id');
+  const h = await q('SELECT id AS venta_id, fecha_key, combo_key, pedido_id, cantidad, ingreso, round(costo,2) AS costo FROM dw.fact_ventas ORDER BY id');
   return { archivos: [
     { nombre: 'dw_dim_fecha.csv', contenido: csv(['fecha_key', 'fecha', 'anio', 'trimestre', 'mes', 'nombre_mes', 'dia', 'dia_semana', 'nombre_dia', 'es_fin_semana', 'temporada'], f) },
     { nombre: 'dw_dim_combo.csv', contenido: csv(['combo_key', 'clave', 'nombre', 'productos'], cb) },
-    { nombre: 'dw_dim_presentacion.csv', contenido: csv(['presentacion_key', 'presentacion_id', 'nombre'], pr) },
-    { nombre: 'dw_fact_ventas.csv', contenido: csv(['venta_id', 'fecha_key', 'combo_key', 'presentacion_key', 'pedido_id', 'cantidad', 'ingreso', 'costo'], h) }] };
+    { nombre: 'dw_fact_ventas.csv', contenido: csv(['venta_id', 'fecha_key', 'combo_key', 'pedido_id', 'cantidad', 'ingreso', 'costo'], h) }] };
 }
 
 module.exports = { cargar, quitarDemo, resumen, exportar, temporada, conciliacion };

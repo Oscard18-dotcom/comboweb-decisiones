@@ -231,7 +231,7 @@ const cambiar = (w, el, valor) => { el.value = valor; el.dispatchEvent(new w.Eve
     pest(w, 'Catálogo y precios').click();
     const filaT = (txt) => [...w.document.querySelectorAll('#staff tbody tr')].find((f) => f.textContent.includes(txt));
     const botonF = (txt, b) => [...filaT(txt).querySelectorAll('button')].find((x) => x.textContent === b);
-    t('catálogo: lista productos y presentaciones con su precio', await until(() => w.document.querySelectorAll('#staff table').length === 3 && filaT(`UI4 Prod ${R}`) && filaT('Caja chica')));
+    t('catálogo: lista productos y combos con su precio', await until(() => w.document.querySelectorAll('#staff table').length === 2 && filaT(`UI4 Prod ${R}`) && !/Caja chica|Presentaciones/.test(w.document.querySelector('#staff').textContent)));
     t('catálogo del administrador: lista los 4 combos prearmados y el personalizado con precios', ['Combo Otoño', 'Combo Navideño', 'Combo San Valentín', 'Combo Regreso a clases', 'Combo personalizado'].every((n) => !!filaT(n)) && /Café latte \+ Brownie/.test(filaT('Combo Navideño').textContent));
     cambiar(w, filaT(`UI4 Prod ${R}`).querySelector('input'), '44.5'); botonF(`UI4 Prod ${R}`, 'Guardar precio').click();
     t('catálogo: cambiar el precio de un producto se guarda', await until(async () => Number((await db.query('SELECT precio FROM productos WHERE nombre=$1', [`UI4 Prod ${R}`])).rows[0].precio) === 44.5) && await until(() => /guardado/.test($('#staff .okmsg').textContent)));
@@ -241,8 +241,6 @@ const cambiar = (w, el, valor) => { el.value = valor; el.dispatchEvent(new w.Eve
     t('catálogo: desactivar un producto lo quita del catálogo público', await until(() => /Inactivo/.test(filaT(`UI4 Prod ${R}`).textContent)) && !(await (await fetch(B + '/api/catalogo')).json()).productos.some((p) => p.nombre.startsWith('UI4 Prod')));
     botonF(`UI4 Prod ${R}`, 'Activar').click();
     t('catálogo: volver a activarlo lo publica', await until(async () => (await (await fetch(B + '/api/catalogo')).json()).productos.some((p) => p.nombre.startsWith('UI4 Prod'))));
-    cambiar(w, filaT('Caja chica').querySelector('input'), '31'); botonF('Caja chica', 'Guardar precio').click();
-    t('catálogo: cambiar el precio de una presentación', await until(async () => Number((await db.query("SELECT precio FROM presentaciones WHERE nombre='Caja chica'")).rows[0].precio) === 31));
 
     pest(w, 'Dashboard').click();
     const logoR = await fetch(B + '/logo.png'); const logoFav = await fetch(B + '/favicon.png');
@@ -376,7 +374,7 @@ const cambiar = (w, el, valor) => { el.value = valor; el.dispatchEvent(new w.Eve
     t('al elegir la fecha: dos pedidos en Pendiente, en orden de hora (09:00 y 12:00)', await until(() => cols()[0] && cols()[0].querySelectorAll('.oc').length === 2) && /09:00/.test(tarj(0, 0).textContent) && /12:00/.test(tarj(0, 1).textContent) && /\(2\)/.test(cols()[0].textContent));
     t('la dedicatoria se ve destacada y como TEXTO (sin ejecutar HTML)', tarj(0, 1).querySelector('.ded').textContent.includes('<img src=x') && !w.document.querySelector('#staff img') && !w.__pwned);
     tarj(0, 1).click();
-    t('al tocar un pedido aparece su ficha técnica con ingredientes', await until(() => /Ficha técnica/.test($('#staff .ficha').textContent) && /Ingredientes/.test($('#staff .ficha').textContent) && /Harina/.test($('#staff .ficha').textContent) && /Caja mediana/.test($('#staff .ficha').textContent)));
+    t('al tocar un pedido aparece su ficha técnica con ingredientes', await until(() => /Ficha técnica/.test($('#staff .ficha').textContent) && /Ingredientes/.test($('#staff .ficha').textContent) && /Harina/.test($('#staff .ficha').textContent)));
     boton(tarj(0, 1), 'Iniciar').click();
     t('"Iniciar": el pedido pasa a En preparación y el cliente queda avisado por correo', await until(() => cols()[1].querySelectorAll('.oc').length === 1) && (await db.query('SELECT estatus FROM pedidos WHERE id=$1', [ordenCli.id])).rows[0].estatus === 'En preparación' && (await db.query("SELECT count(*)::int n FROM notificaciones WHERE pedido_id=$1 AND plantilla='En preparación'", [ordenCli.id])).rows[0].n === 1);
     boton(tarj(1, 0), 'Marcar listo').click();

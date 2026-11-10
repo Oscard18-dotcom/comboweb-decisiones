@@ -95,7 +95,7 @@ const near = (a, b, e = 1e-6) => Math.abs(a - b) < e;
     await Promise.all(Array.from({ length: 10 }, () => mov({ tipo: 'entrada', cantidad: 5 })));
     t('10 entradas simultáneas de 5 suman exactamente 50 (sin pérdidas)', (await porNombre(NOM)).stock === 50);
 
-    const cat = (await call('GET', '/api/catalogo')).j; const P = (n) => cat.productos.find((p) => p.nombre === n).id; const PRES = cat.presentaciones.find((p) => p.nombre === 'Caja mediana').id;
+    const cat = (await call('GET', '/api/catalogo')).j; const P = (n) => cat.productos.find((p) => p.nombre === n).id; const PRES = undefined;
     const comprar = async (items, fecha) => {
       const ck = await call('POST', '/api/pedidos/checkout', { items, presentacion_id: PRES, fecha, hora: '12:00', direccion: { cp: '91190', colonia: 'Las Flores', calle: 'Calle de Prueba', num_ext: '12' } }, cliente);
       if (ck.s !== 201) return ck;

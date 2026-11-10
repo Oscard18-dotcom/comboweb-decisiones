@@ -50,7 +50,7 @@ CREATE TABLE IF NOT EXISTS receta_ingredientes (
 CREATE TABLE IF NOT EXISTS pedidos (
   id              SERIAL PRIMARY KEY,
   cliente_id      INTEGER NOT NULL REFERENCES usuarios(id),
-  presentacion_id INTEGER NOT NULL REFERENCES presentaciones(id),
+  presentacion_id INTEGER REFERENCES presentaciones(id),
   fecha_entrega   DATE NOT NULL,
   hora_entrega    TIME NOT NULL,
   dedicatoria     VARCHAR(120),
@@ -59,6 +59,7 @@ CREATE TABLE IF NOT EXISTS pedidos (
                   CHECK (estatus IN ('Pendiente','En preparación','Listo para entrega','Entregado')),
   creado_en       TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+ALTER TABLE pedidos ALTER COLUMN presentacion_id DROP NOT NULL;
 CREATE INDEX IF NOT EXISTS pedidos_entrega_idx ON pedidos (fecha_entrega, hora_entrega);
 CREATE INDEX IF NOT EXISTS pedidos_estatus_idx ON pedidos (estatus);
 
@@ -238,10 +239,11 @@ CREATE TABLE IF NOT EXISTS decision_datos (
 
 CREATE SCHEMA IF NOT EXISTS dw;
 DO $$ BEGIN
-  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='dw' AND table_name='fact_ventas' AND column_name='zona_key') THEN
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='dw' AND table_name='fact_ventas' AND column_name IN ('zona_key','presentacion_key')) THEN
     DROP TABLE dw.fact_ventas;
     DROP TABLE IF EXISTS dw.dim_zona;
     DROP TABLE IF EXISTS dw.dim_producto;
+    DROP TABLE IF EXISTS dw.dim_presentacion;
   END IF;
 END $$;
 CREATE TABLE IF NOT EXISTS dw.dim_fecha (
@@ -257,11 +259,6 @@ CREATE TABLE IF NOT EXISTS dw.dim_fecha (
   es_fin_semana BOOLEAN NOT NULL,
   temporada    VARCHAR(30) NOT NULL
 );
-CREATE TABLE IF NOT EXISTS dw.dim_presentacion (
-  presentacion_key SERIAL PRIMARY KEY,
-  presentacion_id  INTEGER NOT NULL UNIQUE,
-  nombre           VARCHAR(60) NOT NULL
-);
 CREATE TABLE IF NOT EXISTS dw.dim_combo (
   combo_key SERIAL PRIMARY KEY,
   clave     VARCHAR(20) NOT NULL UNIQUE,
@@ -272,7 +269,6 @@ CREATE TABLE IF NOT EXISTS dw.fact_ventas (
   id               BIGSERIAL PRIMARY KEY,
   fecha_key        INTEGER NOT NULL REFERENCES dw.dim_fecha(fecha_key),
   combo_key        INTEGER NOT NULL REFERENCES dw.dim_combo(combo_key),
-  presentacion_key INTEGER NOT NULL REFERENCES dw.dim_presentacion(presentacion_key),
   pedido_id        INTEGER NOT NULL UNIQUE,
   cantidad         INTEGER NOT NULL CHECK (cantidad > 0),
   ingreso          NUMERIC(12,2) NOT NULL,

@@ -19,7 +19,7 @@ async function horarios(q, fecha) {
   return HORAS.map((hora) => ({ hora, disponible: (ocupados[hora] || 0) < CAPACIDAD() }));
 }
 
-async function requeridos(q, items, insumoCaja) {
+async function requeridos(q, items) {
   const ids = [...items.keys()], cants = ids.map((i) => items.get(i));
   const { rows } = await q.query(
     `SELECT ri.insumo_id, ceil(sum(ri.cantidad / r.rinde * x.cant) * 10000) / 10000 AS total
@@ -29,7 +29,6 @@ async function requeridos(q, items, insumoCaja) {
       GROUP BY ri.insumo_id`, [ids, cants]);
   const conReceta = new Set((await q.query('SELECT producto_id FROM recetas WHERE producto_id = ANY($1)', [ids])).rows.map((r) => r.producto_id));
   const reqs = new Map(rows.map((r) => [r.insumo_id, Number(r.total)]));
-  reqs.set(insumoCaja, (reqs.get(insumoCaja) || 0) + 1);
   return { reqs, sinReceta: ids.filter((i) => !conReceta.has(i)) };
 }
 
@@ -76,10 +75,6 @@ async function validar(q, b = {}) {
     else itemsOk = true;
   }
 
-  const presId = Number(b.presentacion_id);
-  const presOk = Number.isInteger(presId) && presId > 0;
-  if (!presOk) err('presentacion_id', 'presentacion_invalida', 'Elige una presentación.');
-
   let dedicatoria = null;
   if (b.dedicatoria != null && b.dedicatoria !== '') {
     if (typeof b.dedicatoria !== 'string') err('dedicatoria', 'dedicatoria_invalida', 'La dedicatoria no es válida.');
@@ -99,17 +94,15 @@ async function validar(q, b = {}) {
   if (!horaOk) err('hora', 'hora_invalida', `Elige una hora de entrega entre ${HORAS[0]} y ${HORAS[HORAS.length - 1]}.`);
 
   let detalle = null;
-  if (itemsOk && presOk) {
+  if (itemsOk) {
     const prods = (await q.query('SELECT id,nombre,precio FROM productos WHERE activo AND id = ANY($1)', [[...items.keys()]])).rows;
-    const pres = (await q.query('SELECT id,nombre,precio,insumo_id FROM presentaciones WHERE activo AND id=$1', [presId])).rows[0];
     if (prods.length !== items.size) err('items', 'producto_no_disponible', 'Alguno de los productos ya no está disponible.');
-    if (!pres) err('presentacion_id', 'presentacion_no_disponible', 'La presentación elegida no está disponible.');
-    if (prods.length === items.size && pres) {
+    if (prods.length === items.size) {
       const lineas = prods.map((p) => ({ producto_id: p.id, nombre: p.nombre, cantidad: items.get(p.id), precio_unitario: Number(p.precio) }));
-      const totalC = lineas.reduce((a, l) => a + cents(l.precio_unitario) * l.cantidad, 0) + cents(pres.precio);
-      detalle = { lineas, presentacion: { id: pres.id, nombre: pres.nombre, precio: Number(pres.precio) },
+      const totalC = lineas.reduce((a, l) => a + cents(l.precio_unitario) * l.cantidad, 0);
+      detalle = { lineas,
         total: totalC / 100, fecha: b.fecha, hora: b.hora, dedicatoria };
-      const { reqs, sinReceta } = await requeridos(q, items, pres.insumo_id);
+      const { reqs, sinReceta } = await requeridos(q, items);
       if (sinReceta.length) err('items', 'producto_sin_receta', 'Alguno de los productos no se puede preparar por ahora.');
       else errores.push(...(await chequear(q, reqs, fechaOk && horaOk ? b.fecha : null, b.hora)));
     }
@@ -123,7 +116,7 @@ async function crearCheckout(user, body, proveedor) {
   if (v.errores.length || dv.errores.length) return { errores: [...v.errores, ...dv.errores] };
   const d = v.detalle;
   const payload = { items: d.lineas.map((l) => ({ producto_id: l.producto_id, cantidad: l.cantidad })), lineas: d.lineas,
-    presentacion_id: d.presentacion.id, presentacion: d.presentacion, fecha: d.fecha, hora: d.hora, dedicatoria: d.dedicatoria, direccion: dv.dir };
+    fecha: d.fecha, hora: d.hora, dedicatoria: d.dedicatoria, direccion: dv.dir };
   const { rows } = await db.query(
     "INSERT INTO checkouts(cliente_id,payload,total,proveedor,expira_en) VALUES($1,$2,$3,$4, now() + interval '35 minutes') RETURNING id",
     [user.id, JSON.stringify(payload), d.total, proveedor.nombre]);
@@ -158,16 +151,16 @@ async function confirmarPago(checkoutId, { proveedor, referencia, monto, moneda 
     const dir = p.direccion || {};
     await c.query('SELECT pg_advisory_xact_lock(hashtext($1))', [`slot ${p.fecha} ${p.hora}`]);
     const items = new Map(p.items.map((i) => [i.producto_id, i.cantidad]));
-    const { reqs } = await requeridos(c, items, (await c.query('SELECT insumo_id FROM presentaciones WHERE id=$1', [p.presentacion_id])).rows[0].insumo_id);
+    const { reqs } = await requeridos(c, items);
     await c.query('SELECT id FROM insumos WHERE id = ANY($1) ORDER BY id FOR UPDATE', [[...reqs.keys()]]);
     const faltas = await chequear(c, reqs, p.fecha, p.hora);
     if (faltas.length) return aRevision(faltas[0].codigo);
 
     const pedido = (await c.query(
-      `INSERT INTO pedidos(cliente_id,presentacion_id,fecha_entrega,hora_entrega,dedicatoria,total,estatus,
+      `INSERT INTO pedidos(cliente_id,fecha_entrega,hora_entrega,dedicatoria,total,estatus,
                            dir_cp,dir_colonia,dir_calle,dir_num_ext,dir_num_int,dir_municipio,dir_estado,dir_referencias)
-       VALUES($1,$2,$3,$4,$5,$6,'Pendiente',$7,$8,$9,$10,$11,$12,$13,$14) RETURNING id`,
-      [ck.cliente_id, p.presentacion_id, p.fecha, p.hora, p.dedicatoria, ck.total,
+       VALUES($1,$2,$3,$4,$5,'Pendiente',$6,$7,$8,$9,$10,$11,$12,$13) RETURNING id`,
+      [ck.cliente_id, p.fecha, p.hora, p.dedicatoria, ck.total,
         dir.cp || null, dir.colonia || null, dir.calle || null, dir.num_ext || null, dir.num_int || null, dir.municipio || null, dir.estado || null, dir.referencias || null])).rows[0];
     for (const l of p.lineas)
       await c.query('INSERT INTO pedido_items(pedido_id,producto_id,cantidad,precio_unitario) VALUES($1,$2,$3,$4)', [pedido.id, l.producto_id, l.cantidad, l.precio_unitario]);
@@ -195,7 +188,7 @@ async function detallePedido(id) {
   const p = (await db.query(
     `SELECT p.id,p.cliente_id,p.estatus,p.fecha_entrega::text AS fecha,left(p.hora_entrega::text,5) AS hora,p.dedicatoria,p.total,p.creado_en,
             pr.nombre AS presentacion, u.nombre AS cliente, u.correo, ${direccion.COLS}
-       FROM pedidos p JOIN presentaciones pr ON pr.id=p.presentacion_id JOIN usuarios u ON u.id=p.cliente_id WHERE p.id=$1`, [id])).rows[0];
+       FROM pedidos p LEFT JOIN presentaciones pr ON pr.id=p.presentacion_id JOIN usuarios u ON u.id=p.cliente_id WHERE p.id=$1`, [id])).rows[0];
   if (!p) return null;
   const items = (await db.query(
     'SELECT pd.nombre,i.cantidad,i.precio_unitario FROM pedido_items i JOIN productos pd ON pd.id=i.producto_id WHERE i.pedido_id=$1 ORDER BY pd.nombre', [id])).rows
@@ -205,7 +198,7 @@ async function detallePedido(id) {
   const sumaItems = items.reduce((a, i) => a + cents(i.subtotal), 0);
   return { id: p.id, cliente_id: p.cliente_id, folio: folio(p.id), estatus: p.estatus, cliente: { nombre: p.cliente, correo: p.correo },
     entrega: { fecha: p.fecha, hora: p.hora, direccion: direccion.desdeFila(p) }, dedicatoria: p.dedicatoria,
-    presentacion: { nombre: p.presentacion, precio: (cents(p.total) - sumaItems) / 100 }, items, total: Number(p.total), pago, historial, creado_en: p.creado_en };
+    presentacion: p.presentacion ? { nombre: p.presentacion, precio: (cents(p.total) - sumaItems) / 100 } : null, items, total: Number(p.total), pago, historial, creado_en: p.creado_en };
 }
 async function pedidosDe(clienteId) {
   const { rows } = await db.query(
@@ -214,7 +207,7 @@ async function pedidosDe(clienteId) {
                FROM pedido_items i JOIN productos pd ON pd.id=i.producto_id WHERE i.pedido_id=p.id) AS items,
             (SELECT json_agg(json_build_object('estatus',h.estatus,'creado_en',h.creado_en) ORDER BY h.id)
                FROM pedido_estatus_historial h WHERE h.pedido_id=p.id) AS historial
-       FROM pedidos p JOIN presentaciones pr ON pr.id=p.presentacion_id WHERE p.cliente_id=$1 ORDER BY p.id DESC`, [clienteId]);
+       FROM pedidos p LEFT JOIN presentaciones pr ON pr.id=p.presentacion_id WHERE p.cliente_id=$1 ORDER BY p.id DESC`, [clienteId]);
   return rows.map((r) => {
     const o = { ...r, direccion: direccion.desdeFila(r), folio: folio(r.id), total: Number(r.total) };
     for (const k of Object.keys(o)) if (k.startsWith('dir_')) delete o[k];

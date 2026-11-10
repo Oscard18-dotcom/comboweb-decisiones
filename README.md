@@ -37,7 +37,7 @@ Usuarios de prueba (contraseña = tu `SEED_PASSWORD`): `admin@encombo.test`, `co
 
 
 ## Sprint 3: cómo funciona la compra
-1. El cliente arma su combo (productos, presentación, dedicatoria opcional, fecha y hora). Cada cambio se **cotiza y valida en el servidor** (`POST /api/pedidos/cotizar`): precios siempre de la base de datos, insumos suficientes (ext. 8.a) y horario libre (ext. 10.a, máximo 2 pedidos por horario, con horarios alternativos).
+1. El cliente arma su combo (tipo de combo y productos, dedicatoria opcional, fecha y hora). Cada cambio se **cotiza y valida en el servidor** (`POST /api/pedidos/cotizar`): precios siempre de la base de datos, insumos suficientes (ext. 8.a) y horario libre (ext. 10.a, máximo 2 pedidos por horario, con horarios alternativos).
 2. **Pagar** crea un *checkout* (el combo queda guardado) y lleva al cliente a la pasarela. **Todavía no existe el pedido.**
 3. Cuando la pasarela confirma el cobro, el sistema, en **una sola transacción**: vuelve a validar insumos y horario, crea el pedido con estatus *Pendiente*, descuenta el inventario (con movimientos de salida), registra el pago y genera el comprobante. Si algo falla, no queda nada a medias.
 4. El cliente vuelve al sitio, ve su **comprobante** (se puede imprimir) y sigue su pedido en **Mis pedidos**.
@@ -103,7 +103,7 @@ Con `PAYMENT_PROVIDER=simulado` (valor por defecto) la compra lleva a una pantal
 
 ### Tablero de cocina (HU06) — operador de cocina y administrador
 - Muestra los pedidos **de un día** (por defecto hoy) en cuatro columnas por estatus, en orden de hora, con dedicatoria destacada. Los pedidos de días anteriores que siguen sin entregarse salen marcados como **atrasados**.
-- **Ficha técnica** de cada pedido: cliente, entrega, presentación, combo, dedicatoria e **ingredientes que consume** (según las recetas vigentes). La cocina no ve precios.
+- **Ficha técnica** de cada pedido: cliente, entrega, combo, dedicatoria e **ingredientes que consume** (según las recetas vigentes). La cocina no ve precios.
 - El estatus solo avanza **hacia adelante y de uno en uno**: Pendiente → En preparación → Listo para entrega → Entregado. Un doble clic, o dos personas pulsando a la vez, **no duplican** el cambio ni el aviso. Si la pantalla estaba desactualizada, avisa con claridad y se pone al día.
 - Cada cambio queda en el **historial** con fecha, hora y quién lo hizo. El tablero se actualiza solo cada 20 segundos.
 
@@ -145,7 +145,7 @@ En **Mis pedidos** y en el comprobante hay una **línea de tiempo** con la fecha
 
 ### Lo nuevo
 - **Mi cuenta:** cualquier persona cambia su contraseña. Al cambiarla (o al restablecerla el administrador) **se cierran todas las demás sesiones** (columna `usuarios.token_version`).
-- **Pantallas del administrador:** *Usuarios* (alta, rol, baja, restablecer contraseña; protege al último administrador) y *Catálogo y precios* (productos y presentaciones).
+- **Pantallas del administrador:** *Usuarios* (alta, rol, baja, restablecer contraseña; protege al último administrador) y *Catálogo y precios* (productos y combos).
 - **Operación:** `GET /api/salud` (para monitoreo del hosting), apagado ordenado con SIGTERM y límite de intentos configurable (`AUTH_RATE_LIMIT`).
 - **Scripts de despliegue:**
   - `npm run crear-admin` crea el primer administrador (`ADMIN_EMAIL`, `ADMIN_NAME`, `ADMIN_PASSWORD`; con `-- --reiniciar` restablece su contraseña).
@@ -219,7 +219,7 @@ public/                Pantalla del cliente (app.js) y del personal: personal.js
 | POST `/api/auth/register` | Público | Crea una cuenta de **cliente** |
 | POST `/api/auth/login` | Público | Devuelve token (8 h) y datos del usuario |
 | GET `/api/auth/me` | Sesión | Usuario actual |
-| GET `/api/catalogo` | Público | Productos y presentaciones activos |
+| GET `/api/catalogo` | Público | Productos y combos activos |
 | GET/POST `/api/admin/productos` | Admin | Listar / crear producto (nace inactivo) |
 | PUT `/api/admin/productos/:id` | Admin | Editar nombre, descripción y precio |
 | PATCH `/api/admin/productos/:id/activo` | Admin | Activar/desactivar (solo si tiene receta) |
@@ -256,14 +256,15 @@ Es ComboWeb App más la pestaña **Toma de decisiones** del administrador, con d
 - API (solo administrador): `/api/decisiones/*`.
 
 ### 3. Data warehouse (esquema de estrella en PostgreSQL, schema `dw`)
-- Hechos: `dw.fact_ventas` (una fila por pedido entregado). Dimensiones: `dw.dim_fecha`, `dw.dim_combo`, `dw.dim_presentacion`.
+- Hechos: `dw.fact_ventas` (una fila por pedido entregado). Dimensiones: `dw.dim_fecha` y `dw.dim_combo`.
 - Combos: Combo Otoño (Té chai + Galleta), Combo Navideño (Café latte + Brownie), Combo San Valentín (Cupcake + Café latte), Combo Regreso a clases (Galleta + Café americano) y Combo personalizado (cualquier otra mezcla que elija el cliente). Se definen en `src/services/combos.js`.
 - ETL: extrae de `pedidos`, `pedido_items` y `movimientos_inventario`, clasifica cada pedido en su combo y carga. Se puede repetir sin duplicar y se vuelve a sincronizar solo si deja de coincidir con el sistema.
 - Las ventas de demostración (12 meses, con temporadas) se registran como **pedidos reales entregados** de un cliente inactivo (`ventas.demo@encombo.test`). Por eso el Dashboard, Reportes y Toma de decisiones muestran exactamente los mismos números. Se cargan solas al preparar la nube; `VENTAS_DEMO=false` las desactiva. Comandos: `npm run ventas-demo` y `npm run ventas-demo:quitar`.
-- Panel con indicadores, ventas por combo, una línea de conciliación con Reportes y "Exportar para Power BI" (4 CSV: 3 dimensiones y los hechos).
+- Panel con indicadores, ventas por combo, una línea de conciliación con Reportes y "Exportar para Power BI" (3 CSV: 2 dimensiones y los hechos).
 - API (solo administrador): `/api/warehouse/*`.
 
 ### Combos en el pedido, el catálogo y Reportes
+- **Sin tamaño de caja:** el pedido ya no pide ni cobra presentación. El total es la suma de los productos y ya no se descuentan cajas del inventario. Las tablas viejas se conservan solo para los pedidos anteriores.
 - Al armar un pedido, el cliente elige primero el **tipo de combo**: los cuatro prearmados (solo muestran sus dos productos y se piden por cantidad de combos) o el **Combo personalizado**, donde elige cualquier producto.
 - El precio de un combo prearmado es la suma de los precios de sus productos. El catálogo público y "Catálogo y precios" del administrador los listan (`GET /api/catalogo` incluye `combos`).
 - Reportes → Ventas por periodo muestra una tabla "Ventas por combo", con las mismas cifras que el almacén de datos.

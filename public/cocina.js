@@ -49,7 +49,7 @@ Personal.registrar('tab', 'Tablero de pedidos', ['cocina', 'admin'], 2, (cont, H
       e('dl', {}, e('dt', {}, 'Cliente'), e('dd', {}, p.cliente), e('dt', {}, 'Entrega'), e('dd', {}, `${fd(p.fecha)} a las ${p.hora} h`),
         e('dt', {}, 'Dirección'), e('dd', {}, p.direccion ? [`${p.direccion.calle} ${p.direccion.num_ext}${p.direccion.num_int ? ' int. ' + p.direccion.num_int : ''}`, e('br'), `Col. ${p.direccion.colonia}`, e('br'), `C.P. ${p.direccion.cp} · ${p.direccion.municipio}${p.direccion.estado ? ', ' + p.direccion.estado : ''}`] : 'Sin dirección registrada (pedido anterior)'),
         p.direccion && p.direccion.referencias ? [e('dt', {}, 'Referencias'), e('dd', {}, p.direccion.referencias)] : null,
-        e('dt', {}, 'Presentación'), e('dd', {}, p.presentacion),
+        p.presentacion ? [e('dt', {}, 'Presentación'), e('dd', {}, p.presentacion)] : null,
         e('dt', {}, 'Combo'), e('dd', {}, p.items.map((i) => `${i.nombre} x${i.cantidad}`).join(', '))),
       p.dedicatoria ? e('span', { class: 'ded' }, '🎂 Dedicatoria: ' + p.dedicatoria) : e('p', { class: 'mu' }, 'Sin dedicatoria.'),
       e('h3', { style: 'margin-top:10px' }, 'Ingredientes'),

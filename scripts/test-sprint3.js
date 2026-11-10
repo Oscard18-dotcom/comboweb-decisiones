@@ -31,7 +31,7 @@ const hay = (r, codigo) => (r.j.errores || []).some((e) => e.codigo === codigo);
     const admin = (await call('POST', '/api/auth/login', { correo: 'admin@encombo.test', password: process.env.SEED_PASSWORD })).j.token;
     const cat = (await call('GET', '/api/catalogo')).j;
     const P = (n) => cat.productos.find((p) => p.nombre === n).id;
-    const PRES = cat.presentaciones.find((p) => p.nombre === 'Caja mediana').id;
+    const PRES = undefined;
     const combo = (o = {}) => ({ items: [{ producto_id: P('Cupcake'), cantidad: 6 }, { producto_id: P('Café latte'), cantidad: 2 }], presentacion_id: PRES, fecha: dia(0), hora: '12:00', dedicatoria: 'Feliz cumpleaños, Ana', direccion: { cp: '91190', colonia: 'Las Flores', calle: 'Calle de Prueba', num_ext: '12' }, ...o });
     const nuevoCheckout = async (tok, o) => { const r = await call('POST', '/api/pedidos/checkout', combo(o), tok); return r; };
     const aprobar = (id, tok) => call('POST', `/api/pagos/simulado/${id}/aprobar`, undefined, tok);
@@ -40,7 +40,7 @@ const hay = (r, codigo) => (r.j.errores || []).some((e) => e.codigo === codigo);
     t('disponibilidad: 10 horarios, todos libres', r.s === 200 && r.j.horarios.length === 10 && r.j.horarios.every((h) => h.disponible));
     r = await call('GET', '/api/pedidos/disponibilidad?fecha=2026-13-45'); t('disponibilidad: fecha inválida → 400', r.s === 400);
     r = await call('POST', '/api/pedidos/cotizar', { ...combo(), items: [{ producto_id: P('Cupcake'), cantidad: 6, precio: 1, precio_unitario: 1 }, { producto_id: P('Café latte'), cantidad: 2 }], total: 1 });
-    t('cotizar: total correcto ($265) e ignora precios enviados por el cliente', r.s === 200 && r.j.ok && r.j.detalle.total === 265, JSON.stringify(r.j).slice(0, 200));
+    t('cotizar: total correcto ($220, sin caja) e ignora precios enviados por el cliente', r.s === 200 && r.j.ok && r.j.detalle.total === 220, JSON.stringify(r.j).slice(0, 200));
     r = await call('POST', '/api/pedidos/cotizar', { ...combo(), items: [{ producto_id: P('Cupcake'), cantidad: 6 }, { producto_id: P('Cupcake'), cantidad: 4 }] });
     t('cotizar: productos repetidos se suman', r.j.detalle.lineas.length === 1 && r.j.detalle.lineas[0].cantidad === 10);
 
@@ -50,7 +50,6 @@ const hay = (r, codigo) => (r.j.errores || []).some((e) => e.codigo === codigo);
       ['producto inexistente', { items: [{ producto_id: 999999, cantidad: 1 }] }, 'producto_no_disponible'], ['fecha de hoy (sin anticipación)', { fecha: svc.todayMX() }, 'fecha_pasada'],
       ['fecha pasada', { fecha: '2020-01-01' }, 'fecha_pasada'], ['fecha mal formada', { fecha: '2026-02-30' }, 'fecha_invalida'], ['fecha muy lejana', { fecha: svc.addDays(svc.todayMX(), 200) }, 'fecha_lejana'],
       ['hora fuera de horario', { hora: '03:00' }, 'hora_invalida'], ['dedicatoria de 121 caracteres', { dedicatoria: 'x'.repeat(121) }, 'dedicatoria_larga'],
-      ['presentación inexistente', { presentacion_id: 999999 }, 'presentacion_no_disponible'],
     ];
     for (const [nombre, o, codigo] of malos) { r = await call('POST', '/api/pedidos/cotizar', combo(o)); t(`cotizar rechaza: ${nombre}`, r.s === 200 && !r.j.ok && hay(r, codigo), JSON.stringify(r.j.errores)); }
     r = await call('POST', '/api/pedidos/cotizar', combo({ dedicatoria: '' })); t('dedicatoria vacía es válida (opcional)', r.j.ok && r.j.detalle.dedicatoria === null);
@@ -62,7 +61,7 @@ const hay = (r, codigo) => (r.j.errores || []).some((e) => e.codigo === codigo);
 
     await db.query("UPDATE insumos SET stock=30 WHERE nombre='Café molido'");
     r = await call('POST', '/api/pedidos/cotizar', combo());
-    t('stock insuficiente: avisa qué insumo falta (ext. 8.a)', !r.j.ok && hay(r, 'stock_insuficiente') && r.j.errores[0].insumos.includes('Café molido') && r.j.detalle.total === 265);
+    t('stock insuficiente: avisa qué insumo falta (ext. 8.a)', !r.j.ok && hay(r, 'stock_insuficiente') && r.j.errores[0].insumos.includes('Café molido') && r.j.detalle.total === 220);
     r = await call('POST', '/api/pedidos/cotizar', combo({ items: [{ producto_id: P('Café latte'), cantidad: 1 }] })); t('con stock justo (18 g de 30) sí se puede', r.j.ok);
     await db.query("UPDATE insumos SET stock=(SELECT stock FROM insumos WHERE nombre='Café molido') WHERE false");
     for (const s of stock0) await db.query('UPDATE insumos SET stock=$2 WHERE id=$1', [s.id, s.stock]);
@@ -81,11 +80,11 @@ const hay = (r, codigo) => (r.j.errores || []).some((e) => e.codigo === codigo);
     r = await aprobar(ck1, tA); t('pago aprobado → pedido creado', r.s === 200 && r.j.estado === 'pagado' && r.j.pedido_id);
     const pid1 = r.j.pedido_id;
     t('inventario descontado exactamente', (await stock('Harina')) === antes.Harina - 240 && (await stock('Azúcar')) === antes['Azúcar'] - 180 && (await stock('Mantequilla')) === antes.Mantequilla - 120
-      && (await stock('Café molido')) === antes['Café molido'] - 36 && (await stock('Leche')) === antes.Leche - 400 && (await stock('Caja mediana')) === antes['Caja mediana'] - 1);
-    t('se registran 6 movimientos de salida ligados al pedido', (await q('SELECT count(*)::int n FROM movimientos_inventario WHERE pedido_id=$1 AND tipo=\'salida\'', [pid1]))[0].n === 6);
+      && (await stock('Café molido')) === antes['Café molido'] - 36 && (await stock('Leche')) === antes.Leche - 400 && (await stock('Caja mediana')) === antes['Caja mediana']);
+    t('se registran 5 movimientos de salida ligados al pedido (ya no hay caja)', (await q('SELECT count(*)::int n FROM movimientos_inventario WHERE pedido_id=$1 AND tipo=\'salida\'', [pid1]))[0].n === 5);
     r = await call('GET', `/api/pedidos/${pid1}`, undefined, tA); const ped = r.j.pedido;
-    t('comprobante: folio, estatus Pendiente, total, entrega y dedicatoria', ped && /^EC-\d{4,}$/.test(ped.folio) && ped.estatus === 'Pendiente' && ped.total === 265 && ped.entrega.hora === '12:00' && ped.entrega.fecha === dia(0) && ped.dedicatoria === 'Feliz cumpleaños, Ana');
-    t('comprobante: desglose y pago aprobado', ped.items.length === 2 && ped.presentacion.precio === 45 && ped.pago.estado === 'aprobado' && !('cliente_id' in ped));
+    t('comprobante: folio, estatus Pendiente, total, entrega y dedicatoria', ped && /^EC-\d{4,}$/.test(ped.folio) && ped.estatus === 'Pendiente' && ped.total === 220 && ped.entrega.hora === '12:00' && ped.entrega.fecha === dia(0) && ped.dedicatoria === 'Feliz cumpleaños, Ana');
+    t('comprobante: desglose y pago aprobado', ped.items.length === 2 && ped.presentacion === null && ped.pago.estado === 'aprobado' && !('cliente_id' in ped));
     r = await aprobar(ck1, tA); t('aprobar dos veces NO duplica el pedido (idempotente)', r.j.pedido_id === pid1 && (await q('SELECT count(*)::int n FROM pedidos WHERE cliente_id=$1', [clientes[0]]))[0].n === 1 && (await stock('Harina')) === antes.Harina - 240);
     r = await call('GET', `/api/pedidos/checkout/${ck1}`, undefined, tA); t('estado del checkout = pagado', r.j.checkout.estado === 'pagado' && r.j.checkout.pedido_id === pid1);
     r = await call('GET', `/api/pedidos/${pid1}`, undefined, tB); t('otro cliente no ve el pedido → 404', r.s === 404);
@@ -132,13 +131,13 @@ const hay = (r, codigo) => (r.j.errores || []).some((e) => e.codigo === codigo);
     const evento = (type, obj) => JSON.stringify({ id: 'evt_' + Math.random().toString(36).slice(2), object: 'event', type, data: { object: obj } });
     const hook = async (payload, firma) => { const x = await fetch(B + '/api/pagos/webhook/stripe', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Stripe-Signature': firma }, body: payload }); return x.status; };
     const firmar = (payload) => stripeLib.webhooks.generateTestHeaderString({ payload, secret: SECRET });
-    const sesion = (id, o = {}) => ({ id: 'cs_test_' + id, object: 'checkout.session', client_reference_id: id, payment_status: 'paid', amount_total: 26500, currency: 'mxn', ...o });
+    const sesion = (id, o = {}) => ({ id: 'cs_test_' + id, object: 'checkout.session', client_reference_id: id, payment_status: 'paid', amount_total: 22000, currency: 'mxn', ...o });
 
     const w1 = (await nuevoCheckout(tA, { fecha: dia(5) })); t('checkout con Stripe devuelve la URL de la pasarela', w1.s === 201 && w1.j.url.startsWith('https://checkout.stripe.test/'));
     const id1 = w1.j.checkout_id, pl1 = evento('checkout.session.completed', sesion(id1));
     t('webhook con firma inválida → 400', (await hook(pl1, 't=1,v1=firmafalsa')) === 400);
     t('webhook sin firma → 400', (await hook(pl1, '')) === 400);
-    t('webhook alterado después de firmar → 400', (await hook(pl1.replace('26500', '100'), firmar(pl1))) === 400);
+    t('webhook alterado después de firmar → 400', (await hook(pl1.replace('22000', '100'), firmar(pl1))) === 400);
     t('sin firma válida no se crea pedido', (await q('SELECT estado FROM checkouts WHERE id=$1', [id1]))[0].estado === 'creado');
     t('webhook válido (pagado) → 200', (await hook(pl1, firmar(pl1))) === 200);
     const ck = (await q('SELECT estado,pedido_id,referencia FROM checkouts WHERE id=$1', [id1]))[0];

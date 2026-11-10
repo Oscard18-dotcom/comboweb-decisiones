@@ -47,9 +47,9 @@ function setSession(t, u) {
 }
 
 const nuevoDir = () => ({ cp: '', colonia: '', calle: '', ext: '', int: '', ref: '', municipio: '', colonias: [], manual: false, estadoCP: '' });
-const nuevoCombo = () => ({ tipo: null, q: {}, pres: null, ded: false, text: '', fecha: '', hora: '', dir: nuevoDir() });
+const nuevoCombo = () => ({ tipo: null, q: {}, ded: false, text: '', fecha: '', hora: '', dir: nuevoDir() });
 let d = nuevoCombo();
-const cuerpo = () => ({ items: Object.entries(d.q).map(([id, c]) => ({ producto_id: Number(id), cantidad: c })), presentacion_id: d.pres, fecha: d.fecha, hora: d.hora, dedicatoria: d.ded ? d.text : '',
+const cuerpo = () => ({ items: Object.entries(d.q).map(([id, c]) => ({ producto_id: Number(id), cantidad: c })), fecha: d.fecha, hora: d.hora, dedicatoria: d.ded ? d.text : '',
   direccion: { cp: d.dir.cp, colonia: d.dir.colonia, calle: d.dir.calle, num_ext: d.dir.ext, num_int: d.dir.int, referencias: d.dir.ref, ...(d.dir.manual ? { municipio: d.dir.municipio } : {}) } });
 const dirCompleta = () => { const x = d.dir; return /^\d{5}$/.test(x.cp) && !!x.colonia.trim() && x.calle.trim().length >= 2 && !!x.ext.trim() && (!x.manual || !!x.municipio.trim()) && (x.manual || x.colonias.length > 0); };
 const textoDir = (x) => x ? `${x.calle} ${x.num_ext}${x.num_int ? ' int. ' + x.num_int : ''}, Col. ${x.colonia}, C.P. ${x.cp}, ${x.municipio}${x.estado ? ', ' + x.estado : ''}` : null;
@@ -58,7 +58,6 @@ const manana = () => { const x = new Date(); x.setDate(x.getDate() + 1); return 
 function buildArmar() {
   const root = $('#armar'); root.replaceChildren();
   if (!cat) return;
-  if (d.pres == null && cat.presentaciones.length) d.pres = cat.presentaciones[Math.min(1, cat.presentaciones.length - 1)].id;
   const resumen = el('aside', { class: 'card', 'aria-live': 'polite' });
   const errores = el('div', { class: 'errbox', role: 'alert' });
   const pagar = el('button', { class: 'btn', type: 'button', disabled: true }, 'Pagar y confirmar');
@@ -69,7 +68,7 @@ function buildArmar() {
     const det = qt && qt.detalle;
     if (det) {
       det.lineas.forEach((l) => resumen.append(ln(`${l.nombre} x${l.cantidad}`, money(l.precio_unitario * l.cantidad))));
-      resumen.append(ln(det.presentacion.nombre, money(det.presentacion.precio)), ln('Total', money(det.total), 'tot'));
+      resumen.append(ln('Total', money(det.total), 'tot'));
     } else resumen.append(el('p', { class: 'mu' }, 'Elige tus productos para ver el total.'));
     const msgs = ((qt && qt.errores) || []).filter((e) => !(e.codigo === 'sin_productos' || (e.codigo === 'fecha_invalida' && !d.fecha) || (e.codigo === 'hora_invalida' && !d.hora))).map((e) => e.mensaje);
     if (d.ded && !d.text.trim()) msgs.push('Escribe tu dedicatoria o elige “No”.');
@@ -131,11 +130,6 @@ function buildArmar() {
     el('input', { type: 'radio', name: 'tipo', value: t.clave, checked: d.tipo === t.clave, onchange: () => elegirTipo(t) }),
     el('span', {}, el('b', {}, t.nombre), el('br'), el('small', {}, t.productos.length ? t.productos.map((x) => x.nombre).join(' + ') + ' · ' + money(t.precio) : t.descripcion)))));
   pintarProds();
-  const pres = el('div', { class: 'grid' }, cat.presentaciones.map((p) => el('label', { class: 'opt' + (d.pres === p.id ? ' on' : '') },
-    el('input', { type: 'radio', name: 'pres', value: p.id, checked: d.pres === p.id, onchange: (ev) => {
-      d.pres = p.id; ev.target.closest('.grid').querySelectorAll('.opt').forEach((o) => o.classList.remove('on')); ev.target.closest('.opt').classList.add('on'); cotizar();
-    } }), `${p.nombre} · ${money(p.precio)}`)));
-
   const area = el('textarea', { rows: 3, maxlength: 120, placeholder: 'Escribe tu mensaje…', 'aria-label': 'Dedicatoria' }, '');
   area.value = d.text;
   const cuenta = el('small', {}, `${d.text.length}/120`);
@@ -207,10 +201,10 @@ function buildArmar() {
   };
 
   root.append(el('div', { class: 'two' },
-    el('section', { class: 'card' }, el('h2', {}, '1. Elige tu combo'), selector, prodsBox, el('h2', {}, '2. Presentación'), pres,
-      el('h2', {}, '3. ¿Llevará dedicatoria?'), el('div', { class: 'seg' }, bSi, bNo), dedBox,
-      el('h2', {}, '4. Fecha y hora de entrega'), el('div', { class: 'seg' }, fecha, hora),
-      el('h2', {}, '5. Dirección de entrega'), dirBox, errores),
+    el('section', { class: 'card' }, el('h2', {}, '1. Elige tu combo'), selector, prodsBox,
+      el('h2', {}, '2. ¿Llevará dedicatoria?'), el('div', { class: 'seg' }, bSi, bNo), dedBox,
+      el('h2', {}, '3. Fecha y hora de entrega'), el('div', { class: 'seg' }, fecha, hora),
+      el('h2', {}, '4. Dirección de entrega'), dirBox, errores),
     resumen));
   pintar(null); cargaHoras(); if (Object.keys(d.q).length) cotizar();
 }
@@ -228,7 +222,7 @@ function comprobante(p) {
   return el('div', { class: 'ok' },
     el('h2', {}, `Comprobante ${p.folio}`), el('p', {}, chip(p.estatus)),
     ...p.items.map((i) => ln(`${i.nombre} x${i.cantidad}`, money(i.subtotal))),
-    ln(p.presentacion.nombre, money(p.presentacion.precio)), ln('Total pagado', money(p.total), 'tot'),
+    ln('Total pagado', money(p.total), 'tot'),
     p.historial ? [el('h3', {}, 'Seguimiento'), linea(p.estatus, p.historial)] : null,
     el('p', {}, `Cliente: ${p.cliente.nombre}`, el('br'), `Entrega: ${p.entrega.fecha} a las ${p.entrega.hora} h`,
       p.entrega.direccion ? [el('br'), `Dirección: ${p.entrega.direccion.texto}`, p.entrega.direccion.referencias ? [el('br'), `Referencias: ${p.entrega.direccion.referencias}`] : null] : null,
@@ -268,7 +262,7 @@ async function cargarMis(silencioso = false) {
     root.replaceChildren(el('h2', {}, 'Mis pedidos'), el('p', { class: 'mu' }, 'El estatus se actualiza solo y también te avisamos por correo.'),
       ...(pedidos.length ? pedidos.map((p) => el('div', { class: 'card' },
         el('b', {}, p.folio + ' '), chip(p.estatus),
-        el('p', {}, (p.items || []).map((i) => `${i.nombre} x${i.cantidad}`).join(', '), ` · ${p.presentacion}`, p.dedicatoria ? [el('br'), `Dedicatoria: “${p.dedicatoria}”`] : null,
+        el('p', {}, (p.items || []).map((i) => `${i.nombre} x${i.cantidad}`).join(', '), p.dedicatoria ? [el('br'), `Dedicatoria: “${p.dedicatoria}”`] : null,
           el('br'), `Entrega: ${p.fecha} ${p.hora} h · ${money(p.total)}`, p.direccion ? [el('br'), `Dirección: ${p.direccion.texto}`] : null),
         linea(p.estatus, p.historial),
         el('button', { class: 'btn s', type: 'button', style: 'width:auto', onclick: () => verComprobante(p.id) }, 'Ver comprobante'))) : [el('p', { class: 'mu' }, 'Aún no tienes pedidos.')]));
@@ -329,11 +323,10 @@ function paint() {
   document.querySelectorAll('#nav button').forEach((b) => b.classList.toggle('on', b.dataset.tab === tab));
   if (!user) $('#msg').hidden = true;
   if (cat && !cli) {
-    $('#cat').replaceChildren(); $('#pres').replaceChildren();
+    $('#cat').replaceChildren();
     (cat.combos || []).forEach((c) => card($('#cat'), c.nombre, c.productos.map((x) => x.nombre).join(' + '), c.precio));
     card($('#cat'), (cat.combo_personalizado || {}).nombre || 'Combo personalizado', (cat.combo_personalizado || {}).descripcion || '', null);
     cat.productos.forEach((p) => card($('#cat'), p.nombre, p.descripcion, p.precio));
-    cat.presentaciones.forEach((p) => card($('#pres'), p.nombre, '', p.precio));
   }
   if (cli) { if (tab === 'armar') buildArmar(); else if (tab === 'avis') cargarAvisos(); else cargarMis(); if (tab !== 'avis') cargarContador(); atenderRetorno(); }
   if (staff) Personal.iniciar({ api, el, money, usuario: user, descargar }); else Personal.detener();

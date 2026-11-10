@@ -26,7 +26,7 @@ async function fichas(rows) {
 const BASE = `SELECT p.id,p.estatus,p.fecha_entrega::text AS fecha,left(p.hora_entrega::text,5) AS hora,p.dedicatoria,pr.nombre AS presentacion,u.nombre AS cliente,${direccion.COLS},
     (p.fecha_entrega < $1::date AND p.estatus <> 'Entregado') AS atrasado,
     (SELECT json_agg(json_build_object('nombre',pd.nombre,'cantidad',i.cantidad) ORDER BY pd.nombre) FROM pedido_items i JOIN productos pd ON pd.id=i.producto_id WHERE i.pedido_id=p.id) AS items
-  FROM pedidos p JOIN presentaciones pr ON pr.id=p.presentacion_id JOIN usuarios u ON u.id=p.cliente_id`;
+  FROM pedidos p LEFT JOIN presentaciones pr ON pr.id=p.presentacion_id JOIN usuarios u ON u.id=p.cliente_id`;
 
 router.get('/pedidos', wrap(async (req, res) => {
   const fecha = req.query.fecha || svc.todayMX();

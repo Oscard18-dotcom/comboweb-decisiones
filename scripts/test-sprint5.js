@@ -40,7 +40,7 @@ const mondayOf = (iso) => { const d = new Date(iso + 'T12:00:00Z'); d.setUTCDate
     const reg = async (nombre, tag) => { const r = await call('POST', '/api/auth/register', { nombre, correo: `${tag}${R}@prueba.test`, password: 'secreta123' }); clientes.push(r.j.usuario.id); return { token: r.j.token, id: r.j.usuario.id, correo: `${tag}${R}@prueba.test` }; };
     const A = await reg('Ana <b>López</b> & "Co"', 'a5'), Bc = await reg('Beto Ruiz', 'b5'), Rep = await reg('Cliente Reportes', 'r5');
     const D = svc.addDays(svc.todayMX(), 10 + Math.floor(Math.random() * 40));
-    const cat = (await call('GET', '/api/catalogo')).j; const P = (n) => cat.productos.find((p) => p.nombre === n).id; const PRES = cat.presentaciones.find((p) => p.nombre === 'Caja mediana').id;
+    const cat = (await call('GET', '/api/catalogo')).j; const P = (n) => cat.productos.find((p) => p.nombre === n).id; const PRES = undefined;
     const comprar = async (cl, items, fecha, hora, dedicatoria) => {
       const ck = await call('POST', '/api/pedidos/checkout', { items, presentacion_id: PRES, fecha, hora, dedicatoria, direccion: { cp: '91190', colonia: 'Las Flores', calle: 'Calle de Prueba', num_ext: '12' } }, cl.token);
       const ap = await call('POST', `/api/pagos/simulado/${ck.j.checkout_id}/aprobar`, undefined, cl.token);
@@ -72,7 +72,7 @@ const mondayOf = (iso) => { const d = new Date(iso + 'T12:00:00Z'); d.setUTCDate
     t('no muestra los ya entregados de días anteriores ni los de otros días', !tb.pedidos.some((p) => p.id === viejoEnt || p.id === futuro));
     t('el resumen cuenta pedidos por estatus', tb.resumen.Pendiente === 4 && tb.resumen['En preparación'] === 0 && tb.resumen.Entregado === 0);
     const f1 = tb.pedidos.find((p) => p.id === o1);
-    t('ficha técnica: folio, cliente, presentación, dedicatoria, hora y piezas', /^EC-\d{4,}$/.test(f1.folio) && f1.cliente.startsWith('Ana') && f1.presentacion === 'Caja mediana' && f1.dedicatoria === 'Feliz cumpleaños' && f1.hora === '14:00' && f1.items.length === 2);
+    t('ficha técnica: folio, cliente, presentación, dedicatoria, hora y piezas', /^EC-\d{4,}$/.test(f1.folio) && f1.cliente.startsWith('Ana') && f1.presentacion == null && f1.dedicatoria === 'Feliz cumpleaños' && f1.hora === '14:00' && f1.items.length === 2);
     const ingr = Object.fromEntries(f1.ingredientes.map((i) => [i.nombre, i.cantidad]));
     t('ficha técnica: ingredientes exactos según las recetas', ingr.Harina === 240 && ingr['Azúcar'] === 180 && ingr.Mantequilla === 120 && ingr['Café molido'] === 36 && ingr.Leche === 400 && !('Caja mediana' in ingr), JSON.stringify(ingr));
     t('la cocina no ve precios ni totales', !('total' in f1) && !('precio' in f1));

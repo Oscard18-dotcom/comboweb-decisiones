@@ -1,6 +1,6 @@
 <div class="card">
   <p class="rotulo">Qué es el almacén de datos</p>
-  <p>Es una base de datos aparte, pensada solo para <b>analizar</b>. Se llena con un proceso <b>ETL</b>: se <b>extraen</b> los pedidos del sistema, se <b>transforman</b> (se ordenan por fecha, combo y presentación) y se <b>cargan</b> en un esquema de estrella. Así se pueden hacer preguntas de negocio sin tocar la base que usan los clientes.</p>
+  <p>Es una base de datos aparte, pensada solo para <b>analizar</b>. Se llena con un proceso <b>ETL</b>: se <b>extraen</b> los pedidos del sistema, se <b>transforman</b> (se ordenan por fecha y combo) y se <b>cargan</b> en un esquema de estrella. Así se pueden hacer preguntas de negocio sin tocar la base que usan los clientes.</p>
 </div>
 
 @if (error()) { <p class="err" role="alert">{{ error() }}</p> }

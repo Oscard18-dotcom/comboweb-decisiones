@@ -55,12 +55,15 @@ async function hay(q) {
 }
 
 async function asegurar(c, hoy = new Date()) {
-  if (await hay(c)) return 0;
+  if (await hay(c)) {
+    const viejas = (await c.query("SELECT count(*)::int AS n FROM pedidos p JOIN usuarios u ON u.id=p.cliente_id WHERE lower(u.correo)=$1 AND p.presentacion_id IS NOT NULL", [CORREO])).rows[0].n;
+    if (!viejas) return 0;
+    await quitar(c);
+  }
   await ajustarCostos(c);
   const clienteId = await idUsuario(c);
   const productos = (await c.query('SELECT id,nombre,precio FROM productos WHERE activo ORDER BY id')).rows;
-  const presentaciones = (await c.query('SELECT id,precio,insumo_id FROM presentaciones WHERE activo ORDER BY id')).rows;
-  if (!productos.length || !presentaciones.length) throw new Error('Primero carga los datos iniciales del sistema (npm run db:seed).');
+  if (!productos.length) throw new Error('Primero carga los datos iniciales del sistema (npm run db:seed).');
   const porNombre = new Map(productos.map((p) => [p.nombre, p]));
   const receta = new Map();
   for (const x of (await c.query('SELECT r.producto_id, ri.insumo_id, ri.cantidad::float / r.rinde AS por_pieza FROM recetas r JOIN receta_ingredientes ri ON ri.receta_id=r.id')).rows) {
@@ -90,20 +93,19 @@ async function asegurar(c, hoy = new Date()) {
         } while (comboDe(nombres).clave !== 'personalizado');
       } else nombres = combosVigentes.find((k) => k.clave === clave).productos;
       const lineas = nombres.map((nombre) => ({ producto: porNombre.get(nombre), cantidad: 1 + Math.floor(r() * 2) }));
-      const pres = presentaciones[Math.floor(r() * presentaciones.length)];
       const hora = HORAS[Math.floor(r() * HORAS.length)];
-      const total = (lineas.reduce((a, l) => a + cents(l.producto.precio) * l.cantidad, 0) + cents(pres.precio)) / 100;
-      const insumos = new Map([[pres.insumo_id, 1]]);
+      const total = lineas.reduce((a, l) => a + cents(l.producto.precio) * l.cantidad, 0) / 100;
+      const insumos = new Map();
       for (const l of lineas) for (const [ins, por] of receta.get(l.producto.id) || []) insumos.set(ins, (insumos.get(ins) || 0) + por * l.cantidad);
-      pedidos.push({ fecha: iso(d), hora, pres, lineas, total, insumos });
+      pedidos.push({ fecha: iso(d), hora, lineas, total, insumos });
     }
   }
 
   const LOTE = 200;
   for (let i = 0; i < pedidos.length; i += LOTE) {
     const lote = pedidos.slice(i, i + LOTE), params = [];
-    const v = lote.map((p, k) => { params.push(clienteId, p.pres.id, p.fecha, p.hora, p.total, p.fecha + ' ' + p.hora); const b = k * 6; return `($${b + 1},$${b + 2},$${b + 3}::date,$${b + 4}::time,$${b + 5},'Entregado',($${b + 6}::timestamp AT TIME ZONE 'America/Mexico_City'))`; }).join(',');
-    const ids = (await c.query(`INSERT INTO pedidos(cliente_id,presentacion_id,fecha_entrega,hora_entrega,total,estatus,creado_en) VALUES ${v} RETURNING id`, params)).rows.map((x) => x.id);
+    const v = lote.map((p, k) => { params.push(clienteId, p.fecha, p.hora, p.total, p.fecha + ' ' + p.hora); const b = k * 5; return `($${b + 1},$${b + 2}::date,$${b + 3}::time,$${b + 4},'Entregado',($${b + 5}::timestamp AT TIME ZONE 'America/Mexico_City'))`; }).join(',');
+    const ids = (await c.query(`INSERT INTO pedidos(cliente_id,fecha_entrega,hora_entrega,total,estatus,creado_en) VALUES ${v} RETURNING id`, params)).rows.map((x) => x.id);
     const items = [], movs = [], hist = [];
     lote.forEach((p, k) => {
       const id = ids[k];

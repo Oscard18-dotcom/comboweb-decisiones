@@ -42,5 +42,5 @@ export class Warehouse implements OnInit {
     try { const msg = await fn(); await this.cargar(); this.exito.set(msg); } catch (e) { this.error.set((e as Error).message); }
     this.ocupado.set(false);
   }
-  exportar() { return this.accion(async () => { const x = await this.api.exportarWarehouse(); descargar(x.archivos); return `Se descargaron ${x.archivos.length} archivos CSV (3 dimensiones y la tabla de hechos) para Power BI o Excel.`; }); }
+  exportar() { return this.accion(async () => { const x = await this.api.exportarWarehouse(); descargar(x.archivos); return `Se descargaron ${x.archivos.length} archivos CSV (2 dimensiones y la tabla de hechos) para Power BI o Excel.`; }); }
 }
