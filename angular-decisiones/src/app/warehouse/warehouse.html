@@ -1,6 +1,6 @@
 <div class="card">
   <p class="rotulo">Qué es el almacén de datos</p>
-  <p>Es una base de datos aparte, pensada solo para <b>analizar</b>. Se llena con un proceso <b>ETL</b>: se <b>extraen</b> los pedidos del sistema, se <b>transforman</b> (se ordenan por fecha, producto, presentación y zona) y se <b>cargan</b> en un esquema de estrella. Así se pueden hacer preguntas de negocio sin tocar la base que usan los clientes.</p>
+  <p>Es una base de datos aparte, pensada solo para <b>analizar</b>. Se llena con un proceso <b>ETL</b>: se <b>extraen</b> los pedidos del sistema, se <b>transforman</b> (se ordenan por fecha, combo y presentación) y se <b>cargan</b> en un esquema de estrella. Así se pueden hacer preguntas de negocio sin tocar la base que usan los clientes.</p>
 </div>
 
 @if (error()) { <p class="err" role="alert">{{ error() }}</p> }
@@ -12,6 +12,7 @@
   } @else {
     <div class="row filtros"><button class="mini" type="button" data-acc="exportar-dw" [disabled]="ocupado()" (click)="exportar()">Exportar para Power BI</button></div>
 
+    <p class="mu" data-conc="1" [class.ok]="x.conciliacion.coincide">{{ x.conciliacion.coincide ? 'Coincide con el Dashboard y Reportes: ' + (x.conciliacion.almacen.pedidos | number) + ' pedidos entregados y $' + (x.conciliacion.almacen.ventas | number:'1.0-0') + ' en ventas.' : 'El almacén se está actualizando con los pedidos del sistema.' }}</p>
     <div class="kpis" data-kpis="1">
       <div class="kpi"><span>Ingresos</span><b>${{ x.kpis.ingreso | number:'1.0-0' }}</b></div>
       <div class="kpi"><span>Utilidad estimada</span><b>${{ x.kpis.utilidad | number:'1.0-0' }}</b></div>
@@ -27,13 +28,11 @@
       <div class="card"><p class="rotulo">Ingresos por día de la semana</p><app-barras [datos]="dias()" [columnas]="true" prefijo="$" titulo="Ingresos por día de la semana" /></div>
       <div class="card"><p class="rotulo">Ingreso diario promedio por temporada</p><app-barras [datos]="temporadas()" prefijo="$" sufijo=" al día" titulo="Ingreso diario promedio por temporada" /></div>
     </div>
-    <div class="grid2">
-      <div class="card"><p class="rotulo">Productos que más ingresan</p><app-barras [datos]="productos()" prefijo="$" titulo="Ingresos por producto" /></div>
-      <div class="card"><p class="rotulo">Ingresos por municipio</p><app-barras [datos]="zonas()" prefijo="$" titulo="Ingresos por municipio" /></div>
-    </div>
+    <div class="card"><p class="rotulo">Ventas por combo</p><app-barras [datos]="combos()" prefijo="$" titulo="Ingresos por combo" />
+      <p class="mu">@for (c of x.combos; track c.nombre) {<span class="combo-det"><b>{{ c.nombre }}</b>: {{ c.productos }} · {{ c.pedidos | number }} pedidos<br></span>}</p></div>
     <div class="card">
       <p class="rotulo">Relación con las decisiones y los reportes</p>
-      <p class="mu">Los datos del warehouse sirven para estimar los números de la matriz de pagos: por ejemplo, la temporada con más ingreso diario ayuda a decidir qué combo lanzar, y los municipios que más compran ayudan a elegir la zona de entrega.</p>
+      <p class="mu">Los datos del warehouse sirven para estimar los números de la matriz de pagos: por ejemplo, la temporada con más ingreso diario ayuda a decidir qué combo lanzar, y las ventas por combo muestran cuál conviene preparar en cada época.</p>
       <p class="atajos"><button type="button" class="vinculo" data-ir="dash" (click)="ir('dash')">Abrir Dashboard</button><button type="button" class="vinculo" data-ir="rep" (click)="ir('rep')">Abrir Reportes</button></p>
     </div>
   }

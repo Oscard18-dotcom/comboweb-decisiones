@@ -34,6 +34,7 @@ app.get('/api/salud', async (req, res) => {
 });
 app.use('/api', (req, res) => res.status(404).json({ error: 'Ruta no encontrada.' }));
 
+app.use(require('./middleware/minificar').minificar(path.join(__dirname, '..', 'public')));
 app.use(express.static(path.join(__dirname, '..', 'public')));
 
 app.use((err, req, res, next) => {

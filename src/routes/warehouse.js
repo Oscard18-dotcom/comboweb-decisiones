@@ -8,8 +8,7 @@ router.use(auth, roles('admin'));
 router.use(rateLimit({ windowMs: 15 * 60 * 1000, limit: 200, standardHeaders: true, legacyHeaders: false, message: { error: 'Demasiadas consultas. Intenta de nuevo en unos minutos.' } }));
 
 router.get('/resumen', wrap(async (req, res) => {
-  const origen = ['todos', 'pedido', 'demo'].includes(req.query.origen) ? req.query.origen : 'todos';
-  res.json(await wh.resumen(origen));
+  res.json(await wh.resumen());
 }));
 router.post('/cargar', wrap(async (req, res) => {
   const r = await wh.cargar({ demo: !!(req.body && req.body.demo === true), usuarioId: req.user.id });

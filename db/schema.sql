@@ -237,6 +237,13 @@ CREATE TABLE IF NOT EXISTS decision_datos (
 );
 
 CREATE SCHEMA IF NOT EXISTS dw;
+DO $$ BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='dw' AND table_name='fact_ventas' AND column_name='zona_key') THEN
+    DROP TABLE dw.fact_ventas;
+    DROP TABLE IF EXISTS dw.dim_zona;
+    DROP TABLE IF EXISTS dw.dim_producto;
+  END IF;
+END $$;
 CREATE TABLE IF NOT EXISTS dw.dim_fecha (
   fecha_key    INTEGER PRIMARY KEY,
   fecha        DATE NOT NULL UNIQUE,
@@ -250,39 +257,28 @@ CREATE TABLE IF NOT EXISTS dw.dim_fecha (
   es_fin_semana BOOLEAN NOT NULL,
   temporada    VARCHAR(30) NOT NULL
 );
-CREATE TABLE IF NOT EXISTS dw.dim_producto (
-  producto_key   SERIAL PRIMARY KEY,
-  producto_id    INTEGER NOT NULL UNIQUE,
-  nombre         VARCHAR(80) NOT NULL,
-  precio_lista   NUMERIC(10,2) NOT NULL,
-  costo_estimado NUMERIC(10,4) NOT NULL DEFAULT 0
-);
 CREATE TABLE IF NOT EXISTS dw.dim_presentacion (
   presentacion_key SERIAL PRIMARY KEY,
   presentacion_id  INTEGER NOT NULL UNIQUE,
   nombre           VARCHAR(60) NOT NULL
 );
-CREATE TABLE IF NOT EXISTS dw.dim_zona (
-  zona_key  SERIAL PRIMARY KEY,
-  cp        VARCHAR(5) NOT NULL,
-  colonia   VARCHAR(80) NOT NULL,
-  municipio VARCHAR(80) NOT NULL,
-  UNIQUE (cp, colonia, municipio)
+CREATE TABLE IF NOT EXISTS dw.dim_combo (
+  combo_key SERIAL PRIMARY KEY,
+  clave     VARCHAR(20) NOT NULL UNIQUE,
+  nombre    VARCHAR(40) NOT NULL,
+  productos VARCHAR(120) NOT NULL
 );
 CREATE TABLE IF NOT EXISTS dw.fact_ventas (
   id               BIGSERIAL PRIMARY KEY,
   fecha_key        INTEGER NOT NULL REFERENCES dw.dim_fecha(fecha_key),
-  producto_key     INTEGER NOT NULL REFERENCES dw.dim_producto(producto_key),
+  combo_key        INTEGER NOT NULL REFERENCES dw.dim_combo(combo_key),
   presentacion_key INTEGER NOT NULL REFERENCES dw.dim_presentacion(presentacion_key),
-  zona_key         INTEGER NOT NULL REFERENCES dw.dim_zona(zona_key),
-  pedido_id        INTEGER,
-  origen           VARCHAR(10) NOT NULL CHECK (origen IN ('pedido','demo')),
+  pedido_id        INTEGER NOT NULL UNIQUE,
   cantidad         INTEGER NOT NULL CHECK (cantidad > 0),
   ingreso          NUMERIC(12,2) NOT NULL,
-  costo            NUMERIC(12,2) NOT NULL
+  costo            NUMERIC(14,6) NOT NULL
 );
 CREATE INDEX IF NOT EXISTS fact_ventas_fecha_idx ON dw.fact_ventas (fecha_key);
-CREATE INDEX IF NOT EXISTS fact_ventas_origen_idx ON dw.fact_ventas (origen);
 CREATE TABLE IF NOT EXISTS dw.carga_log (
   id         SERIAL PRIMARY KEY,
   creado_en  TIMESTAMPTZ NOT NULL DEFAULT now(),

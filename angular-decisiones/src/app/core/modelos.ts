@@ -22,11 +22,11 @@ export interface DecisionRegistrada {
 export interface Archivo { nombre: string; contenido: string; }
 
 export interface ResumenWarehouse {
-  origen: string; filas: { pedido: number; demo: number }; ultima_carga: { creado_en: string; tipo: string; filas: number; detalle: string } | null;
-  kpis: { ingreso: number; utilidad: number; margen: number; piezas: number };
+  filas: { pedidos: number }; ultima_carga: { creado_en: string; tipo: string; filas: number; detalle: string } | null;
+  conciliacion: { sistema: { pedidos: number; ventas: number }; almacen: { pedidos: number; ventas: number }; coincide: boolean };
+  kpis: { ingreso: number; utilidad: number; margen: number; piezas: number; pedidos: number };
   meses: { etiqueta: string; ingreso: number; utilidad: number; piezas: number }[];
-  productos: { nombre: string; piezas: number; ingreso: number; utilidad: number }[];
-  zonas: { municipio: string; ingreso: number; piezas: number }[];
+  combos: { nombre: string; productos: string; pedidos: number; piezas: number; ingreso: number; utilidad: number }[];
   dias: { dia: string; ingreso: number; piezas: number }[];
   temporadas: { temporada: string; ingreso: number; piezas: number; dias: number; ingreso_por_dia: number }[];
 }

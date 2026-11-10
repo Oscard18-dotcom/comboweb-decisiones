@@ -29,11 +29,15 @@
     "test:warehouse": "node scripts/test-warehouse.js",
     "test:angular": "node scripts/test-angular.js",
     "angular:compilar": "cd angular-decisiones && npm install && npx ng build",
-    "test:sprint10": "node scripts/test-sprint10.js"
+    "test:sprint10": "node scripts/test-sprint10.js",
+    "ventas-demo": "node scripts/ventas-demo.js",
+    "ventas-demo:quitar": "node scripts/ventas-demo.js --quitar",
+    "test:proteccion": "node scripts/test-proteccion.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
     "dotenv": "^16.4.5",
+    "esbuild": "0.25.10",
     "express": "^4.19.2",
     "express-rate-limit": "^7.2.0",
     "helmet": "^7.1.0",

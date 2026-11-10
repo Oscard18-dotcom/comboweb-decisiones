@@ -249,21 +249,26 @@ Es ComboWeb App más la pestaña **Toma de decisiones** del administrador, con d
 - Nota: un framework no oculta el código (el navegador siempre recibe la pantalla). Lo que protege el sistema es lo que está en el servidor: sesiones, permisos por rol, validaciones y cálculos.
 
 ### 2. Toma de decisiones
-- 4 casos de ejemplo (combo de temporada, producción diaria, zona de entrega, proveedor) con matriz de pagos editable.
+- 3 casos de ejemplo (combo de temporada, producción diaria, proveedor) con matriz de pagos editable.
 - 6 criterios: Maximin, Maximax, Laplace, Hurwicz (α), Savage y VME, más el consenso entre ellos.
 - "Guardar como mis datos" guarda la matriz editada; "Volver a los datos de ejemplo" la restaura.
 - Las decisiones se registran con la matriz y lo que decía cada criterio.
 - API (solo administrador): `/api/decisiones/*`.
 
 ### 3. Data warehouse (esquema de estrella en PostgreSQL, schema `dw`)
-- Hechos: `dw.fact_ventas` (una fila por producto de cada pedido). Dimensiones: `dw.dim_fecha`, `dw.dim_producto`, `dw.dim_presentacion`, `dw.dim_zona`.
-- ETL: extrae de `pedidos`/`pedido_items`, transforma (fecha, zona, costo estimado desde la receta) y carga. Se puede repetir sin duplicar.
-- "Cargar con historial de demostración" agrega 12 meses de ventas inventadas (`origen = 'demo'`), con temporadas y fines de semana, para ver el warehouse funcionando.
-- Panel con indicadores y gráficas, y "Exportar para Power BI" (5 CSV: 4 dimensiones y los hechos).
+- Hechos: `dw.fact_ventas` (una fila por pedido entregado). Dimensiones: `dw.dim_fecha`, `dw.dim_combo`, `dw.dim_presentacion`.
+- Combos: Combo Otoño (Té chai + Galleta), Combo Navideño (Café latte + Brownie), Combo San Valentín (Cupcake + Café latte), Combo Regreso a clases (Galleta + Café americano) y Combo personalizado (cualquier otra mezcla que elija el cliente). Se definen en `src/services/combos.js`.
+- ETL: extrae de `pedidos`, `pedido_items` y `movimientos_inventario`, clasifica cada pedido en su combo y carga. Se puede repetir sin duplicar y se vuelve a sincronizar solo si deja de coincidir con el sistema.
+- Las ventas de demostración (12 meses, con temporadas) se registran como **pedidos reales entregados** de un cliente inactivo (`ventas.demo@encombo.test`). Por eso el Dashboard, Reportes y Toma de decisiones muestran exactamente los mismos números. Se cargan solas al preparar la nube; `VENTAS_DEMO=false` las desactiva. Comandos: `npm run ventas-demo` y `npm run ventas-demo:quitar`.
+- Panel con indicadores, ventas por combo, una línea de conciliación con Reportes y "Exportar para Power BI" (4 CSV: 3 dimensiones y los hechos).
 - API (solo administrador): `/api/warehouse/*`.
 
+### 4. Protección del código en el navegador
+- El servidor entrega los `.js` y `.css` de `public/` minificados (esbuild), sin comentarios ni mapas de código (`src/middleware/minificar.js`). `npm run test:proteccion` lo comprueba.
+- Aun así, lo que llega al navegador siempre se puede ver con F12: la protección real está en el servidor (sesiones, permisos por rol, validaciones, cálculos) y en mantener el repositorio privado.
+
 ### Pruebas
-`npm run test:decisiones`, `npm run test:warehouse`, `npm run test:ui` y las anteriores. La prueba de la pantalla Angular en un navegador real es `npm run test:angular` (necesita `npm i --no-save playwright && npx playwright install chromium`).
+`npm run test:decisiones`, `npm run test:warehouse`, `npm run test:proteccion`, `npm run test:ui` y las anteriores. La prueba de la pantalla Angular en un navegador real es `npm run test:angular` (necesita `npm i --no-save playwright && npx playwright install chromium`).
 
 
 ---
@@ -278,4 +283,4 @@ Es ComboWeb App más la pestaña **Toma de decisiones** del administrador, con d
 - Pruebas nuevas: `npm run test:sprint10`.
 - **Correo por Brevo:** nuevo `MAIL_PROVIDER=brevo` (API por HTTPS), que funciona en Render gratis. Variables: `BREVO_API_KEY` y `MAIL_FROM`.
 
-- **Margen del warehouse más realista:** el costo de cada producto ahora suma los ingredientes más 30 % del precio de lista por costos indirectos (mano de obra, gas, empaque). El margen de la demostración queda cerca de 54 %.
+- **Margen del warehouse más realista:** el costo de cada producto ahora suma los ingredientes más 30 % del precio de lista por costos indirectos (mano de obra, gas, empaque). Después los costos de insumos de la demostración se ajustaron para un margen cercano a 58 %.

@@ -45,8 +45,8 @@ const R = Date.now();
     t('empate total: gana la primera y se avisa del empate', por(ev, 'maximin').ganador === 0 && por(ev, 'maximin').empates.includes(1));
 
     const c = await call('GET', '/api/decisiones/casos', undefined, admin);
-    t('GET /casos → 4 casos y 6 criterios', c.s === 200 && c.j.casos.length === 4 && c.j.criterios.length === 6);
-    t('los casos son: combo de temporada, producción, zona, proveedor', ['combo-temporada', 'produccion-diaria', 'zona-entrega', 'proveedor'].every((id) => c.j.casos.some((x) => x.id === id)));
+    t('GET /casos → 4 casos y 6 criterios', c.s === 200 && c.j.casos.length === 3 && c.j.criterios.length === 6);
+    t('los casos son: combo de temporada, producción, proveedor', ['combo-temporada', 'produccion-diaria', 'proveedor'].every((id) => c.j.casos.some((x) => x.id === id)));
     for (const k of c.j.casos) {
       const m = { alternativas: k.alternativas.map((a) => a.nombre), escenarios: k.escenarios, pagos: k.alternativas.map((a) => a.pagos), probabilidades: k.probabilidades, alfa: 0.6 };
       const r = await call('POST', '/api/decisiones/evaluar', m, admin);

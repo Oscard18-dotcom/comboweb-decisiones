@@ -134,7 +134,7 @@ async function arrancar(env, puerto) {
     try { await admPool.query(`CREATE DATABASE ${nombreTemp}`); tempDb = nombreTemp; } catch (e) { console.log(`AVISO: no se pudo crear una base temporal (${e.message}); se omiten las pruebas de preparar-nube.`); }
     if (tempDb) {
       const urlT = process.env.DATABASE_URL.replace(/\/[^/]*$/, '/' + tempDb);
-      const envT = { ...prodBase, MODO_DEMO: 'true', DATABASE_URL: urlT, ADMIN_EMAIL: `Dueño${R}@Prueba.Test`.replace('ñ', 'n'), ADMIN_PASSWORD: 'clave-de-la-nube-1', ADMIN_NAME: 'Dueña Demo' };
+      const envT = { ...prodBase, MODO_DEMO: 'true', VENTAS_DEMO: 'false', DATABASE_URL: urlT, ADMIN_EMAIL: `Dueño${R}@Prueba.Test`.replace('ñ', 'n'), ADMIN_PASSWORD: 'clave-de-la-nube-1', ADMIN_NAME: 'Dueña Demo' };
       const T = new Pool({ connectionString: urlT, ssl: process.env.DATABASE_SSL === 'true' ? { rejectUnauthorized: false } : false });
       x = run(['scripts/preparar-nube.js'], envT);
       t('preparar-nube en una base vacía: crea tablas, datos de ejemplo y administrador', x.code === 0 && /Tablas listas/.test(x.out) && /Datos iniciales cargados/.test(x.out) && /Administrador creado/.test(x.out), x.out.slice(-300));
@@ -165,6 +165,11 @@ async function arrancar(env, puerto) {
       t('sin ADMIN_EMAIL/ADMIN_PASSWORD y sin administrador: avisa claramente y no falla', x.code === 0 && /No hay administrador/.test(x.out));
       x = run(['scripts/preparar-nube.js'], { ...envT, ADMIN_EMAIL: 'x@prueba.test', ADMIN_PASSWORD: 'corta' });
       t('una contraseña corta no crea al administrador', x.code === 0 && /No hay administrador/.test(x.out) && await cuenta('SELECT count(*)::int n FROM usuarios') === 0);
+      x = run(['scripts/preparar-nube.js'], { ...envT, VENTAS_DEMO: '', ADMIN_EMAIL: 'demo@prueba.test', ADMIN_PASSWORD: 'clave-demo-12345' });
+      const nd = await cuenta("SELECT count(*)::int n FROM pedidos p JOIN usuarios u ON u.id=p.cliente_id WHERE u.correo='ventas.demo@encombo.test' AND p.estatus='Entregado'");
+      t('preparar-nube registra por defecto las ventas de demostración como pedidos entregados (VENTAS_DEMO=false las omite)', x.code === 0 && nd > 500, x.out.slice(-300) + nd);
+      x = run(['scripts/preparar-nube.js'], { ...envT, VENTAS_DEMO: '' });
+      t('…y repetirlo no las duplica', x.code === 0 && await cuenta("SELECT count(*)::int n FROM pedidos p JOIN usuarios u ON u.id=p.cliente_id WHERE u.correo='ventas.demo@encombo.test'") === nd);
       await T.end();
     }
   } catch (e) {

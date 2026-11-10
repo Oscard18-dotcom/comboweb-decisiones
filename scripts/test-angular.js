@@ -16,7 +16,7 @@ const esperar = async (fn, ms = 8000) => { const s = Date.now(); while (Date.now
     await pg.click('#staff .seg button:has-text("Toma de decisiones")');
     const fr = pg.frameLocator('#marco-decisiones');
     t('la pestaña muestra la aplicación Angular dentro de un marco', await esperar(async () => (await fr.locator('app-root').count()) === 1));
-    t('Angular: 4 tipos de decisión y 6 criterios calculados al abrir', await esperar(async () => (await fr.locator('[data-caso]').count()) === 4 && (await fr.locator('tr[data-criterio]').count()) === 6));
+    t('Angular: 3 tipos de decisión y 6 criterios calculados al abrir', await esperar(async () => (await fr.locator('[data-caso]').count()) === 3 && (await fr.locator('tr[data-criterio]').count()) === 6));
     t('contexto: la pantalla muestra cifras del Dashboard y enlaces a Dashboard y Reportes', !!(await esperar(async () => (await fr.locator('[data-contexto] > div').count()) >= 4 && (await fr.locator('[data-ir=dash]').count()) === 1 && (await fr.locator('[data-ir=rep]').count()) === 1)));
     t('Analizar: 4 secciones plegables, todas abiertas al inicio', await fr.locator('details.seccion').count() === 4 && await fr.locator('details.seccion[open]').count() === 4);
     t('Analizar: sin planteamiento y sin botones de guardar ni exportar; queda Deshacer cambios', (await fr.locator('details.seccion:has-text("Planteamiento")').count()) === 0 && (await fr.locator('[data-acc=guardar-datos], [data-acc=ejemplo], [data-acc=exportar]').count()) === 0 && (await fr.locator('button:has-text("Deshacer cambios")').count()) === 1);
@@ -48,7 +48,9 @@ const esperar = async (fn, ms = 8000) => { const s = Date.now(); while (Date.now
     t('Decisiones registradas: aparece la nueva', !!(await esperar(async () => /Registrada desde Angular/.test(await fr.locator('app-historial').textContent()) && /Admin/i.test(await fr.locator('app-historial').textContent()))));
     await fr.locator('[data-s=dw]').click();
     t('Data warehouse: explica el esquema de estrella y ya no muestra el diagrama', !!(await esperar(async () => /esquema de estrella/.test(await fr.locator('app-warehouse').textContent()) && (await fr.locator('svg').count()) === 0)));
-    t('el warehouse muestra solo datos de prueba, sin pulsar nada (KPIs y gráficas)', !!(await esperar(async () => (await fr.locator('[data-kpis] .kpi').count()) === 4 && (await fr.locator('.cols .col').count()) >= 12, 20000)) && (await db.query("SELECT 1 FROM dw.fact_ventas WHERE origen='demo' LIMIT 1")).rows.length === 1);
+    t('el warehouse muestra solo datos de prueba, sin pulsar nada (KPIs y gráficas)', !!(await esperar(async () => (await fr.locator('[data-kpis] .kpi').count()) === 4 && (await fr.locator('.cols .col').count()) >= 12, 20000)) && (await db.query("SELECT 1 FROM pedidos p JOIN usuarios u ON u.id=p.cliente_id WHERE u.correo='ventas.demo@encombo.test' LIMIT 1")).rows.length === 1);
+    t('el warehouse muestra las ventas por combo y ya no zona ni municipio', (await fr.locator('app-warehouse').textContent()).match(/Combo Otoño/) && /Combo Navideño/.test(await fr.locator('app-warehouse').textContent()) && /Combo San Valentín/.test(await fr.locator('app-warehouse').textContent()) && /Combo Regreso a clases/.test(await fr.locator('app-warehouse').textContent()) && /Combo personalizado/.test(await fr.locator('app-warehouse').textContent()) && !/municipio|zona de entrega/i.test(await fr.locator('app-warehouse').textContent()));
+    t('el warehouse informa que coincide con el Dashboard y Reportes', /Coincide con el Dashboard y Reportes/.test(await fr.locator('[data-conc]').textContent()));
     t('ya no hay botones de cargar ni de quitar la demostración, ni filtros de origen', (await fr.locator('[data-acc=etl-demo], [data-acc=etl], [data-acc=quitar-demo], [data-origen]').count()) === 0);
     const [dl2] = await Promise.all([pg.waitForEvent('download', { timeout: 8000 }), fr.locator('[data-acc=exportar-dw]').click()]);
     t('exportar para Power BI descarga CSV del esquema estrella', /^dw_.*\.csv$/.test(dl2.suggestedFilename()), dl2.suggestedFilename());
@@ -66,7 +68,7 @@ const esperar = async (fn, ms = 8000) => { const s = Date.now(); while (Date.now
     t('sin errores de JavaScript en toda la sesión', errores.length === 0, errores.join(' | '));
   } catch (e) { fail++; console.log('FAIL error inesperado', e.message); }
   finally {
-    try { await db.query("DELETE FROM decisiones WHERE notas='Registrada desde Angular (prueba)'"); await db.query("DELETE FROM decision_datos WHERE caso_id='combo-temporada'"); await db.query('DELETE FROM dw.fact_ventas'); } catch (e) { console.log('Aviso: limpieza incompleta:', e.message); }
+    try { await db.query("DELETE FROM decisiones WHERE notas='Registrada desde Angular (prueba)'"); await db.query("DELETE FROM decision_datos WHERE caso_id='combo-temporada'"); await require('../src/services/warehouse').quitarDemo(); await require('../src/services/ventas-demo').revertirCostos(db); await db.query('DELETE FROM dw.fact_ventas'); } catch (e) { console.log('Aviso: limpieza incompleta:', e.message); }
     await br.close(); console.log(`\n${pass} correctas, ${fail} fallidas`); server.close(); await db.pool.end(); process.exit(fail ? 1 : 0);
   }
 })();

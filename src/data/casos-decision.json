@@ -1,237 +1,172 @@
 {
- "casos": [
-  {
-   "id": "combo-temporada",
-   "titulo": "Combo de temporada",
-   "pregunta": "¿Qué combo de temporada conviene lanzar?",
-   "unidad": "pesos de utilidad por temporada",
-   "origen": "El administrador estimó, para cada combo candidato, la utilidad de toda la temporada (ventas menos costo de insumos y merma) en tres escenarios de demanda. Son estimaciones de ejemplo, no datos observados; puedes editarlas.",
-   "columna_extra": "Productos del combo",
-   "escenarios": [
-    "demanda alta",
-    "demanda media",
-    "demanda baja"
-   ],
-   "probabilidades": [
-    0.3,
-    0.5,
-    0.2
-   ],
-   "alternativas": [
+  "casos": [
     {
-     "nombre": "Combo Otoño",
-     "detalle": "Té chai + Galleta",
-     "pagos": [
-      14000,
-      9500,
-      4000
-     ]
+      "id": "combo-temporada",
+      "titulo": "Combo de temporada",
+      "pregunta": "¿Qué combo de temporada conviene lanzar?",
+      "unidad": "pesos de utilidad por temporada",
+      "origen": "El administrador estimó, para cada combo candidato, la utilidad de toda la temporada (ventas menos costo de insumos y merma) en tres escenarios de demanda. Son estimaciones de ejemplo, no datos observados; puedes editarlas.",
+      "columna_extra": "Productos del combo",
+      "escenarios": [
+        "demanda alta",
+        "demanda media",
+        "demanda baja"
+      ],
+      "probabilidades": [
+        0.3,
+        0.5,
+        0.2
+      ],
+      "alternativas": [
+        {
+          "nombre": "Combo Otoño",
+          "detalle": "Té chai + Galleta",
+          "pagos": [
+            14000,
+            9500,
+            4000
+          ]
+        },
+        {
+          "nombre": "Combo Navideño",
+          "detalle": "Café latte + Brownie",
+          "pagos": [
+            24000,
+            13000,
+            -3500
+          ]
+        },
+        {
+          "nombre": "Combo San Valentín",
+          "detalle": "Cupcake + Café latte",
+          "pagos": [
+            19000,
+            11000,
+            1500
+          ]
+        },
+        {
+          "nombre": "Combo Regreso a clases",
+          "detalle": "Galleta + Café americano",
+          "pagos": [
+            11000,
+            9800,
+            8200
+          ]
+        }
+      ]
     },
     {
-     "nombre": "Combo Navideño",
-     "detalle": "Café latte + Brownie",
-     "pagos": [
-      24000,
-      13000,
-      -3500
-     ]
+      "id": "produccion-diaria",
+      "titulo": "Producción diaria",
+      "pregunta": "¿Cuántos combos conviene preparar mañana?",
+      "unidad": "pesos de utilidad del día",
+      "origen": "Cada combo vendido deja $37 de utilidad y cada combo que sobra se pierde ($38 de costo). Utilidad = 37 × combos vendidos − 38 × combos que sobran. La demanda del día puede ser de 20, 40 o 60 combos. Son supuestos de ejemplo; puedes editarlos.",
+      "columna_extra": "Combos a preparar",
+      "escenarios": [
+        "demanda de 20 combos",
+        "demanda de 40 combos",
+        "demanda de 60 combos"
+      ],
+      "probabilidades": [
+        0.2,
+        0.5,
+        0.3
+      ],
+      "alternativas": [
+        {
+          "nombre": "Preparar 20",
+          "detalle": "20 combos",
+          "pagos": [
+            740,
+            740,
+            740
+          ]
+        },
+        {
+          "nombre": "Preparar 30",
+          "detalle": "30 combos",
+          "pagos": [
+            360,
+            1110,
+            1110
+          ]
+        },
+        {
+          "nombre": "Preparar 40",
+          "detalle": "40 combos",
+          "pagos": [
+            -20,
+            1480,
+            1480
+          ]
+        },
+        {
+          "nombre": "Preparar 50",
+          "detalle": "50 combos",
+          "pagos": [
+            -400,
+            1100,
+            1850
+          ]
+        }
+      ]
     },
     {
-     "nombre": "Combo San Valentín",
-     "detalle": "Cupcake + Café latte",
-     "pagos": [
-      19000,
-      11000,
-      1500
-     ]
-    },
-    {
-     "nombre": "Combo Regreso a clases",
-     "detalle": "Galleta + Café americano",
-     "pagos": [
-      11000,
-      9800,
-      8200
-     ]
+      "id": "proveedor",
+      "titulo": "Proveedor",
+      "pregunta": "¿Con qué proveedor conviene concentrar las compras de harina y azúcar del mes?",
+      "unidad": "pesos de utilidad mensual",
+      "origen": "Se estimó la utilidad mensual que dejaría comprar con cada proveedor (precio de los insumos, más lo que se pierde si falta producto) en tres escenarios del mercado. Son estimaciones de ejemplo, no datos observados; puedes editarlas.",
+      "columna_extra": "Perfil del proveedor",
+      "escenarios": [
+        "precios estables",
+        "alza de precios",
+        "desabasto"
+      ],
+      "probabilidades": [
+        0.5,
+        0.3,
+        0.2
+      ],
+      "alternativas": [
+        {
+          "nombre": "Harinas del Golfo",
+          "detalle": "Precio medio, confiable",
+          "pagos": [
+            11500,
+            9800,
+            10200
+          ]
+        },
+        {
+          "nombre": "Mayorista de Xalapa",
+          "detalle": "Barato, sensible a alzas",
+          "pagos": [
+            13800,
+            8200,
+            6500
+          ]
+        },
+        {
+          "nombre": "Distribuidora La Central",
+          "detalle": "Muy barato, falla el abasto",
+          "pagos": [
+            15200,
+            9000,
+            1500
+          ]
+        },
+        {
+          "nombre": "Proveedor local de Coatepec",
+          "detalle": "Más caro, muy estable",
+          "pagos": [
+            10200,
+            9900,
+            9600
+          ]
+        }
+      ]
     }
-   ]
-  },
-  {
-   "id": "produccion-diaria",
-   "titulo": "Producción diaria",
-   "pregunta": "¿Cuántos combos conviene preparar mañana?",
-   "unidad": "pesos de utilidad del día",
-   "origen": "Cada combo vendido deja $37 de utilidad y cada combo que sobra se pierde ($38 de costo). Utilidad = 37 × combos vendidos − 38 × combos que sobran. La demanda del día puede ser de 20, 40 o 60 combos. Son supuestos de ejemplo; puedes editarlos.",
-   "columna_extra": "Combos a preparar",
-   "escenarios": [
-    "demanda de 20 combos",
-    "demanda de 40 combos",
-    "demanda de 60 combos"
-   ],
-   "probabilidades": [
-    0.2,
-    0.5,
-    0.3
-   ],
-   "alternativas": [
-    {
-     "nombre": "Preparar 20",
-     "detalle": "20 combos",
-     "pagos": [
-      740,
-      740,
-      740
-     ]
-    },
-    {
-     "nombre": "Preparar 30",
-     "detalle": "30 combos",
-     "pagos": [
-      360,
-      1110,
-      1110
-     ]
-    },
-    {
-     "nombre": "Preparar 40",
-     "detalle": "40 combos",
-     "pagos": [
-      -20,
-      1480,
-      1480
-     ]
-    },
-    {
-     "nombre": "Preparar 50",
-     "detalle": "50 combos",
-     "pagos": [
-      -400,
-      1100,
-      1850
-     ]
-    }
-   ]
-  },
-  {
-   "id": "zona-entrega",
-   "titulo": "Zona de entrega",
-   "pregunta": "¿A qué zona conviene ampliar la entrega a domicilio?",
-   "unidad": "pesos de utilidad mensual",
-   "origen": "Se comparó cada zona candidata con una zona donde ya se entrega y se estimó su utilidad mensual (ventas menos costo de insumos y de reparto) en tres escenarios de demanda. Son estimaciones de ejemplo, no datos observados; puedes editarlas.",
-   "columna_extra": "Municipio",
-   "escenarios": [
-    "demanda alta",
-    "demanda media",
-    "demanda baja"
-   ],
-   "probabilidades": [
-    0.3,
-    0.5,
-    0.2
-   ],
-   "alternativas": [
-    {
-     "nombre": "Xalapa Centro y Universidad",
-     "detalle": "Xalapa",
-     "pagos": [
-      12000,
-      8500,
-      4500
-     ]
-    },
-    {
-     "nombre": "Coatepec",
-     "detalle": "Coatepec",
-     "pagos": [
-      15500,
-      8800,
-      1500
-     ]
-    },
-    {
-     "nombre": "Banderilla",
-     "detalle": "Banderilla",
-     "pagos": [
-      7500,
-      5200,
-      2800
-     ]
-    },
-    {
-     "nombre": "Emiliano Zapata",
-     "detalle": "Emiliano Zapata",
-     "pagos": [
-      10500,
-      6900,
-      -1200
-     ]
-    },
-    {
-     "nombre": "Xico",
-     "detalle": "Xico",
-     "pagos": [
-      17800,
-      6000,
-      -4800
-     ]
-    }
-   ]
-  },
-  {
-   "id": "proveedor",
-   "titulo": "Proveedor",
-   "pregunta": "¿Con qué proveedor conviene concentrar las compras de harina y azúcar del mes?",
-   "unidad": "pesos de utilidad mensual",
-   "origen": "Se estimó la utilidad mensual que dejaría comprar con cada proveedor (precio de los insumos, más lo que se pierde si falta producto) en tres escenarios del mercado. Son estimaciones de ejemplo, no datos observados; puedes editarlas.",
-   "columna_extra": "Perfil del proveedor",
-   "escenarios": [
-    "precios estables",
-    "alza de precios",
-    "desabasto"
-   ],
-   "probabilidades": [
-    0.5,
-    0.3,
-    0.2
-   ],
-   "alternativas": [
-    {
-     "nombre": "Harinas del Golfo",
-     "detalle": "Precio medio, confiable",
-     "pagos": [
-      11500,
-      9800,
-      10200
-     ]
-    },
-    {
-     "nombre": "Mayorista de Xalapa",
-     "detalle": "Barato, sensible a alzas",
-     "pagos": [
-      13800,
-      8200,
-      6500
-     ]
-    },
-    {
-     "nombre": "Distribuidora La Central",
-     "detalle": "Muy barato, falla el abasto",
-     "pagos": [
-      15200,
-      9000,
-      1500
-     ]
-    },
-    {
-     "nombre": "Proveedor local de Coatepec",
-     "detalle": "Más caro, muy estable",
-     "pagos": [
-      10200,
-      9900,
-      9600
-     ]
-    }
-   ]
-  }
- ]
+  ]
 }

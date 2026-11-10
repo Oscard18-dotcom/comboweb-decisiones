@@ -27,5 +27,9 @@ const { isEmail, isPassword } = require('../src/util');
     else await pool.query("INSERT INTO usuarios(nombre,correo,password_hash,rol) VALUES($1,$2,$3,'admin')", [(process.env.ADMIN_NAME || 'Administrador').trim().slice(0, 80) || 'Administrador', correo, hash]);
     console.log(previo && hay ? `✔ Contraseña restablecida para el administrador ${correo}. Recuerda QUITAR la variable ADMIN_REINICIAR.` : `✔ Administrador creado: ${correo}`);
   }
+  if (process.env.VENTAS_DEMO !== 'false') {
+    const n = await require('../src/services/ventas-demo').asegurarConexion();
+    console.log(n ? `✔ Se registraron ${n} ventas de demostración (12 meses) en pedidos, Dashboard y Reportes.` : '✔ Las ventas de demostración ya estaban registradas.');
+  }
   await pool.end();
 })().catch((e) => { console.error('✖ No se pudo preparar el sistema:', e.message); process.exit(1); });

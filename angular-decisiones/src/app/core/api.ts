@@ -30,7 +30,7 @@ export class Api {
   dashboard() { return this.ir(this.http.get<DashboardSistema>('/api/reportes/dashboard')); }
   ventasRecientes() { return this.ir(this.http.get<VentasSistema>('/api/reportes/ventas')); }
 
-  resumen(origen: string) { return this.ir(this.http.get<ResumenWarehouse>('/api/warehouse/resumen', { params: { origen } })); }
+  resumen() { return this.ir(this.http.get<ResumenWarehouse>('/api/warehouse/resumen')); }
   cargarWarehouse(demo: boolean) { return this.ir(this.http.post<{ ok: boolean; pedidos: number; demo: number | null }>('/api/warehouse/cargar', { demo })); }
   quitarDemo() { return this.ir(this.http.delete<{ ok: boolean; borradas: number }>('/api/warehouse/demo')); }
   exportarWarehouse() { return this.ir(this.http.get<{ archivos: Archivo[] }>('/api/warehouse/exportar')); }
