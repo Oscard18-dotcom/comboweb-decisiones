@@ -263,6 +263,9 @@ Es ComboWeb App más la pestaña **Toma de decisiones** del administrador, con d
 - Panel con indicadores, ventas por combo, una línea de conciliación con Reportes y "Exportar para Power BI" (3 CSV: 2 dimensiones y los hechos).
 - API (solo administrador): `/api/warehouse/*`.
 
+### Dashboard: ventas por periodo
+- El Dashboard tiene un selector de periodo: hoy, esta semana (de lunes a hoy), este mes, trimestre, semestre, año e histórico total. Muestra ventas, pedidos, ticket promedio, utilidad bruta, margen y el detalle por hora, día, semana, mes o año según el periodo. API: `GET /api/reportes/ventas-periodo?periodo=...` (solo administrador). Usa los mismos pedidos que Reportes y el almacén de datos.
+
 ### Combos en el pedido, el catálogo y Reportes
 - **Sin tamaño de caja:** el pedido ya no pide ni cobra presentación. El total es la suma de los productos y ya no se descuentan cajas del inventario. Las tablas viejas se conservan solo para los pedidos anteriores.
 - Al armar un pedido, el cliente elige primero el **tipo de combo**: los cuatro prearmados (solo muestran sus dos productos y se piden por cantidad de combos) o el **Combo personalizado**, donde elige cualquier producto.

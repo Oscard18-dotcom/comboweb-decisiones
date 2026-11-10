@@ -94,6 +94,18 @@ const R = Date.now();
     r = await call('GET', '/api/warehouse/resumen', undefined, admin);
     t('un pedido nuevo aparece solo en el warehouse (San Valentín) y sigue coincidiendo', p2.id > 0 && r.j.kpis.pedidos === rs.kpis.pedidos + 1 && r.j.conciliacion.coincide && (await q("SELECT c.nombre FROM dw.fact_ventas f JOIN dw.dim_combo c USING(combo_key) WHERE f.pedido_id=$1", [p2.id]))[0].nombre === 'Combo San Valentín');
 
+    const vp = {};
+    for (const p of ['hoy', 'semana', 'mes', 'trimestre', 'semestre', 'anio', 'total']) vp[p] = (await call('GET', `/api/reportes/ventas-periodo?periodo=${p}`, undefined, admin)).j;
+    t('ventas por periodo: los 7 periodos responden con desde/hasta y cifras', Object.values(vp).every((x) => x.desde && x.hasta && typeof x.ventas === 'number' && x.serie && x.combos));
+    t('ventas por periodo: hoy ≤ semana ≤ mes ≤ trimestre ≤ semestre ≤ año ≤ histórico', ['hoy', 'semana', 'mes', 'trimestre', 'semestre', 'anio', 'total'].every((p, i, a) => !i || vp[a[i - 1]].ventas <= vp[p].ventas + 0.005 && vp[a[i - 1]].pedidos <= vp[p].pedidos));
+    t('ventas por periodo: el histórico total coincide con Reportes y con el warehouse', vp.total.pedidos === r.j.kpis.pedidos && Math.abs(vp.total.ventas - r.j.kpis.ingreso) < 0.02 && Math.abs(vp.total.utilidad - r.j.kpis.utilidad) < 0.05);
+    t('ventas por periodo: la suma de la serie y de los combos es igual al total del periodo', Object.values(vp).every((x) => Math.abs(x.serie.reduce((a, y) => a + y.ventas, 0) - x.ventas) < 0.02 && Math.abs(x.combos.reduce((a, y) => a + y.ventas, 0) - x.ventas) < 0.02 && x.serie.reduce((a, y) => a + y.pedidos, 0) === x.pedidos));
+    const pr = svc.todayMX(), ini = (d) => d, mesIni = pr.slice(0, 8) + '01', anioIni = pr.slice(0, 4) + '-01-01';
+    t('ventas por periodo: mes empieza el día 1, año el 1 de enero, trimestre y semestre en su mes de inicio', vp.mes.desde === mesIni && vp.anio.desde === anioIni && /^\d{4}-(01|04|07|10)-01$/.test(vp.trimestre.desde) && /^\d{4}-(01|07)-01$/.test(vp.semestre.desde) && vp.hoy.desde === pr && vp.hoy.hasta === pr && new Date(vp.semana.desde + 'T12:00:00Z').getUTCDay() === 1);
+    t('ventas por periodo: periodo inválido → 400 y sin sesión → 401', (await call('GET', '/api/reportes/ventas-periodo?periodo=ayer', undefined, admin)).s === 400 && (await call('GET', '/api/reportes/ventas-periodo?periodo=mes')).s === 401);
+    const mm = (await call('GET', `/api/reportes/ventas?desde=${vp.mes.desde}&hasta=${vp.mes.hasta}&agrupar=dia`, undefined, admin)).j;
+    t('ventas por periodo: "este mes" coincide con Reportes para las mismas fechas', mm.totales.pedidos === vp.mes.pedidos && Math.abs(mm.totales.ventas - vp.mes.ventas) < 0.02 && Math.abs(mm.totales.utilidad - vp.mes.utilidad) < 0.05);
+
     r = await call('GET', '/api/warehouse/exportar', undefined, admin);
     const nombres = (r.j.archivos || []).map((a) => a.nombre).sort();
     t('exportar → 3 archivos CSV (2 dimensiones + hechos)', nombres.join() === 'dw_dim_combo.csv,dw_dim_fecha.csv,dw_fact_ventas.csv', nombres.join());

@@ -174,7 +174,10 @@ const cambiar = (w, el, valor) => { el.value = valor; el.dispatchEvent(new w.Eve
     const pest = (w, txt) => [...w.document.querySelectorAll('#staff .seg button')].find((b) => b.textContent === txt);
     t('administrador: ve 9 pestañas (incluye Toma de decisiones) y abre en el Dashboard', await until(() => w.document.querySelectorAll('#staff .seg button').length === 9) && ['Dashboard', 'Tablero de pedidos', 'Inventario', 'Pedidos a proveedor', 'Recetas y costeo', 'Catálogo y precios', 'Reportes', 'Toma de decisiones', 'Usuarios'].every((n) => pest(w, n)) && pest(w, 'Dashboard').classList.contains('on'));
     t('dashboard: tarjetas del día y la alerta de reorden (Té chai)', await until(() => /Ventas de hoy/.test($('#staff').textContent) && /Té chai/.test($('#staff .alertas, #staff .grid2') ? $('#staff .grid2').textContent : '')));
-    const tv = await until(() => $('#staff table.contable'));
+    const tv = await until(() => [...w.document.querySelectorAll('#staff table.contable')].find((x) => /Fecha/.test(x.textContent) && x.querySelectorAll('tbody tr').length === 8));
+    t('dashboard: selector de periodo con hoy, semana, mes, trimestre, semestre, año e histórico total', await until(() => ['Hoy', 'Esta semana', 'Este mes', 'Trimestre', 'Semestre', 'Año', 'Histórico total'].every((n) => [...w.document.querySelectorAll('#staff [data-p]')].some((b) => b.textContent === n))));
+    w.document.querySelector('#staff [data-p=total]').click();
+    t('al elegir Histórico total el panel de ventas cambia y marca el periodo elegido', await until(() => w.document.querySelector('#staff [data-p=total]').classList.contains('on') && /Ventas por periodo/.test($('#staff').textContent) && !!w.document.querySelector('#staff [data-ventas-periodo]')));
     t('dashboard: no muestra basura (null, undefined)', limpio(w));
     t('dashboard: ventas de 7 días en tabla contable con renglón de suma y el $ a la izquierda', tv && tv.querySelectorAll('tbody tr').length === 8 && /Suma/.test(tv.textContent) && tv.querySelector('td.mon span').textContent === '$');
     [...w.document.querySelectorAll('#staff .seg button')].find((b) => /Recetas/.test(b.textContent)).click();

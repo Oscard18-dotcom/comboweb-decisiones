@@ -54,7 +54,8 @@ async function hay(q) {
   return r.rows[0].n;
 }
 
-async function asegurar(c, hoy = new Date()) {
+async function asegurar(c, hoy) {
+  if (!hoy) { const [y, m, d] = require('./pedidos').todayMX().split('-').map(Number); hoy = new Date(Date.UTC(y, m - 1, d)); }
   if (await hay(c)) {
     const viejas = (await c.query("SELECT count(*)::int AS n FROM pedidos p JOIN usuarios u ON u.id=p.cliente_id WHERE lower(u.correo)=$1 AND p.presentacion_id IS NOT NULL", [CORREO])).rows[0].n;
     if (!viejas) return 0;

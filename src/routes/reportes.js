@@ -62,6 +62,48 @@ router.get('/dashboard', wrap(async (req, res) => {
     pagos_en_revision: rev.rows.length, pagos_revision: rev.rows.map((x) => ({ ...x, total: Number(x.total) })) });
 }));
 
+const PERIODOS = ['hoy', 'semana', 'mes', 'trimestre', 'semestre', 'anio', 'total'];
+function inicioPeriodo(periodo, hoy) {
+  const [y, m] = hoy.split('-').map(Number), pad = (n) => String(n).padStart(2, '0');
+  if (periodo === 'hoy') return hoy;
+  if (periodo === 'semana') { const dow = (new Date(hoy + 'T12:00:00Z').getUTCDay() + 6) % 7; return svc.addDays(hoy, -dow); }
+  if (periodo === 'mes') return `${y}-${pad(m)}-01`;
+  if (periodo === 'trimestre') return `${y}-${pad(Math.floor((m - 1) / 3) * 3 + 1)}-01`;
+  if (periodo === 'semestre') return `${y}-${m <= 6 ? '01' : '07'}-01`;
+  if (periodo === 'anio') return `${y}-01-01`;
+  return null;
+}
+
+router.get('/ventas-periodo', wrap(async (req, res) => {
+  const periodo = req.query.periodo || 'hoy';
+  if (!PERIODOS.includes(periodo)) return res.status(400).json({ error: 'Elige hoy, semana, mes, trimestre, semestre, anio o total.' });
+  const hasta = svc.todayMX();
+  let desde = inicioPeriodo(periodo, hasta);
+  if (!desde) {
+    const m = (await db.query(`SELECT min(${FECHA})::text AS d FROM pedidos p`)).rows[0].d;
+    desde = m || hasta;
+  }
+  const dias = (Date.parse(hasta) - Date.parse(desde)) / 864e5;
+  const unidad = periodo === 'hoy' ? 'hour' : dias <= 31 ? 'day' : dias <= 100 ? 'week' : dias <= 1100 ? 'month' : 'year';
+  const { rows } = await db.query(
+    `WITH base AS (SELECT p.id, p.total, (p.creado_en AT TIME ZONE ${TZ}) AS ts FROM pedidos p WHERE ${FECHA} BETWEEN $1 AND $2),
+          costos AS (SELECT m.pedido_id, sum(m.cantidad * i.costo_unitario) AS costo FROM movimientos_inventario m JOIN insumos i ON i.id = m.insumo_id
+                      WHERE m.tipo = 'salida' AND m.pedido_id IN (SELECT id FROM base) GROUP BY m.pedido_id)
+     SELECT to_char(date_trunc($3, b.ts), 'YYYY-MM-DD HH24:MI') AS periodo, count(*)::int AS pedidos, sum(b.total) AS ventas, coalesce(sum(c.costo), 0) AS costo
+       FROM base b LEFT JOIN costos c ON c.pedido_id = b.id GROUP BY 1 ORDER BY 1`, [desde, hasta, unidad]);
+  const tot = rows.reduce((a, x) => ({ pedidos: a.pedidos + x.pedidos, ventas: a.ventas + Number(x.ventas), costo: a.costo + Number(x.costo) }), { pedidos: 0, ventas: 0, costo: 0 });
+  const pc = (await db.query(
+    `SELECT p.total, (SELECT COALESCE(sum(cantidad),0) FROM pedido_items WHERE pedido_id=p.id)::int AS piezas,
+            (SELECT array_agg(DISTINCT pr.nombre) FROM pedido_items pi JOIN productos pr ON pr.id=pi.producto_id WHERE pi.pedido_id=p.id) AS productos
+       FROM pedidos p WHERE ${FECHA} BETWEEN $1 AND $2`, [desde, hasta])).rows;
+  const acum = new Map(TODOS.map((c) => [c.clave, { nombre: c.nombre, pedidos: 0, ventas: 0 }]));
+  for (const x of pc) { const a = acum.get(comboDe(x.productos || []).clave); a.pedidos += 1; a.ventas += Number(x.total); }
+  res.json({ periodo, desde, hasta, unidad, pedidos: tot.pedidos, ventas: r2(tot.ventas), costo: r2(tot.costo), utilidad: r2(tot.ventas - tot.costo),
+    margen_pct: tot.ventas > 0 ? Math.round((tot.ventas - tot.costo) / tot.ventas * 1000) / 10 : 0, ticket_promedio: tot.pedidos ? r2(tot.ventas / tot.pedidos) : 0,
+    serie: rows.map((x) => ({ periodo: x.periodo, pedidos: x.pedidos, ventas: r2(x.ventas) })),
+    combos: [...acum.values()].filter((x) => x.pedidos).map((x) => ({ nombre: x.nombre, pedidos: x.pedidos, ventas: r2(x.ventas) })) });
+}));
+
 router.get('/ventas', wrap(async (req, res) => {
   const rg = rango(req, res); if (!rg) return;
   const agrupar = req.query.agrupar || 'dia';
