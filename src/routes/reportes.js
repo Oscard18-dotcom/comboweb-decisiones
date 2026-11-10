@@ -62,10 +62,11 @@ router.get('/dashboard', wrap(async (req, res) => {
     pagos_en_revision: rev.rows.length, pagos_revision: rev.rows.map((x) => ({ ...x, total: Number(x.total) })) });
 }));
 
-const PERIODOS = ['hoy', 'semana', 'mes', 'trimestre', 'semestre', 'anio', 'total'];
+const PERIODOS = ['hoy', 'semana', 'mes', 'trimestre', 'semestre', 'anio', 'total', 'ultimos30', 'rango'];
 function inicioPeriodo(periodo, hoy) {
   const [y, m] = hoy.split('-').map(Number), pad = (n) => String(n).padStart(2, '0');
   if (periodo === 'hoy') return hoy;
+  if (periodo === 'ultimos30') return svc.addDays(hoy, -29);
   if (periodo === 'semana') { const dow = (new Date(hoy + 'T12:00:00Z').getUTCDay() + 6) % 7; return svc.addDays(hoy, -dow); }
   if (periodo === 'mes') return `${y}-${pad(m)}-01`;
   if (periodo === 'trimestre') return `${y}-${pad(Math.floor((m - 1) / 3) * 3 + 1)}-01`;
@@ -76,15 +77,20 @@ function inicioPeriodo(periodo, hoy) {
 
 router.get('/ventas-periodo', wrap(async (req, res) => {
   const periodo = req.query.periodo || 'hoy';
-  if (!PERIODOS.includes(periodo)) return res.status(400).json({ error: 'Elige hoy, semana, mes, trimestre, semestre, anio o total.' });
-  const hasta = svc.todayMX();
+  if (!PERIODOS.includes(periodo)) return res.status(400).json({ error: 'Elige hoy, semana, mes, anio, total, ultimos30 o rango.' });
+  let hasta = svc.todayMX();
   let desde = inicioPeriodo(periodo, hasta);
-  if (!desde) {
+  if (periodo === 'rango') {
+    desde = req.query.desde; hasta = req.query.hasta;
+    if (!svc.fechaValida(desde) || !svc.fechaValida(hasta)) return res.status(400).json({ error: 'Las fechas deben tener el formato AAAA-MM-DD.' });
+    if (desde > hasta) return res.status(400).json({ error: 'La fecha inicial debe ser anterior o igual a la final.' });
+    if ((Date.parse(hasta) - Date.parse(desde)) / 864e5 > 1830) return res.status(400).json({ error: 'El rango máximo es de 5 años.' });
+  } else if (!desde) {
     const m = (await db.query(`SELECT min(${FECHA})::text AS d FROM pedidos p`)).rows[0].d;
     desde = m || hasta;
   }
   const dias = (Date.parse(hasta) - Date.parse(desde)) / 864e5;
-  const unidad = periodo === 'hoy' ? 'hour' : dias <= 31 ? 'day' : dias <= 100 ? 'week' : dias <= 1100 ? 'month' : 'year';
+  const unidad = dias === 0 ? 'hour' : dias <= 31 ? 'day' : dias <= 100 ? 'week' : dias <= 1100 ? 'month' : 'year';
   const { rows } = await db.query(
     `WITH base AS (SELECT p.id, p.total, (p.creado_en AT TIME ZONE ${TZ}) AS ts FROM pedidos p WHERE ${FECHA} BETWEEN $1 AND $2),
           costos AS (SELECT m.pedido_id, sum(m.cantidad * i.costo_unitario) AS costo FROM movimientos_inventario m JOIN insumos i ON i.id = m.insumo_id

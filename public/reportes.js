@@ -8,17 +8,38 @@
   Personal.registrar('dash', 'Dashboard', ['admin'], 1, (cont, H) => {
     const { e, api, chipC } = H;
     const raiz = e('div'); cont.append(raiz);
-    let periodo = 'hoy';
-    const NOM = { hoy: 'Hoy', semana: 'Esta semana', mes: 'Este mes', trimestre: 'Trimestre', semestre: 'Semestre', anio: 'Año', total: 'Histórico total' };
+    let periodo = 'hoy', desde = '', hasta = '';
+    const NOM = { hoy: 'Día (hoy)', semana: 'Semana', mes: 'Mes', anio: 'Año', total: 'Histórico total', ultimos30: 'Últimos 30 días', rango: 'Elegir fechas…' };
     const MES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
     const etq = (p, u) => { const [f, h] = p.split(' '), [y, m, d] = f.split('-'); return u === 'hour' ? h : u === 'day' ? `${d}/${m}` : u === 'week' ? `Semana del ${d}/${m}` : u === 'month' ? `${MES[Number(m) - 1]} ${y}` : y; };
-    const panelV = e('section', { class: 'card tw' });
+    const hoyLocal = () => iso(new Date());
+    const aviso = e('p', { class: 'err', role: 'alert' });
+    const inDesde = e('input', { type: 'date', 'aria-label': 'Fecha inicial', 'data-desde': '1', onchange: (ev) => { desde = ev.target.value; } });
+    const inHasta = e('input', { type: 'date', 'aria-label': 'Fecha final', 'data-hasta': '1', onchange: (ev) => { hasta = ev.target.value; } });
+    const aplicar = e('button', { type: 'button', class: 'mini', 'data-aplicar': '1', onclick: () => {
+      desde = inDesde.value; hasta = inHasta.value;
+      if (!desde || !hasta) { aviso.textContent = 'Elige la fecha inicial y la final.'; return; }
+      if (desde > hasta) { aviso.textContent = 'La fecha inicial debe ser anterior o igual a la final.'; return; }
+      aviso.textContent = ''; cargarVentas();
+    } }, 'Aplicar');
+    const fechas = e('div', { class: 'row filtros', 'data-fechas': '1', style: 'align-items:end' }, e('label', {}, 'Desde', inDesde), e('label', {}, 'Hasta', inHasta), aplicar);
+    fechas.hidden = true;
+    const menu = e('select', { 'aria-label': 'Periodo de ventas', 'data-periodo': '1', onchange: (ev) => {
+      periodo = ev.target.value; fechas.hidden = periodo !== 'rango'; aviso.textContent = '';
+      if (periodo === 'rango') { if (!hasta) { hasta = hoyLocal(); desde = mas(hasta, -6); } inDesde.value = desde; inHasta.value = hasta; inDesde.max = inHasta.max = hoyLocal(); }
+      cargarVentas();
+    } }, ...Object.entries(NOM).map(([k, n]) => e('option', { value: k }, n)));
+    menu.value = periodo;
+    const contenido = e('div');
+    const panelV = e('section', { class: 'card tw' }, e('h3', {}, 'Ventas por periodo'), e('div', { class: 'row filtros', style: 'align-items:end' }, e('label', {}, 'Periodo', menu)), fechas, aviso, contenido);
+    let seqV = 0;
     async function cargarVentas() {
+      const mi = ++seqV;
       try {
-        const v = await api('/reportes/ventas-periodo?periodo=' + periodo);
+        const v = await api('/reportes/ventas-periodo?periodo=' + periodo + (periodo === 'rango' ? `&desde=${desde}&hasta=${hasta}` : ''));
+        if (mi !== seqV) return;
         const max = Math.max(1, ...v.serie.map((x) => x.ventas));
-        panelV.replaceChildren(e('h3', {}, 'Ventas por periodo'),
-          e('div', { class: 'seg', role: 'group', 'aria-label': 'Periodo de ventas' }, ...Object.entries(NOM).map(([k, n]) => e('button', { type: 'button', 'data-p': k, class: k === periodo ? 'on' : '', onclick: () => { periodo = k; cargarVentas(); } }, n))),
+        contenido.replaceChildren(
           e('p', { class: 'mu' }, `Del ${fd(v.desde)} al ${fd(v.hasta)} · cifras en pesos mexicanos (MXN)`),
           e('div', { class: 'kp', 'data-ventas-periodo': '1' }, kp('Ventas', mx(v.ventas)), kp('Pedidos', String(v.pedidos)), kp('Ticket promedio', mx(v.ticket_promedio)), kp('Utilidad bruta', mx(v.utilidad)), kp('Margen', v.margen_pct + ' %')),
           v.serie.length ? e('table', { class: 'contable' }, e('thead', {}, e('tr', {}, e('th', {}, v.unidad === 'hour' ? 'Hora' : 'Periodo'), e('th', { class: 'n' }, 'Pedidos'), e('th', { class: 'n' }, 'Ventas'), e('th', {}, ''))),
@@ -27,7 +48,7 @@
               e('tr', { class: 'total' }, e('td', {}, 'Suma'), e('td', { class: 'n' }, String(v.pedidos)), mon(e, v.ventas), e('td', {}))))
             : e('p', { class: 'mu' }, 'No hay ventas en este periodo.'),
           v.combos.length ? e('p', { class: 'mu' }, 'Por combo: ' + v.combos.map((x) => `${x.nombre} ${mx(x.ventas)} (${x.pedidos})`).join(' · ')) : null);
-      } catch (er) { panelV.replaceChildren(e('p', { class: 'err' }, er.message)); }
+      } catch (er) { if (mi === seqV) contenido.replaceChildren(e('p', { class: 'err' }, er.message)); }
     }
     const kp = (t, v, color) => e('div', { class: 'card' }, e('small', { class: 'mu' }, t), e('b', { style: color ? 'color:' + color : '' }, v));
     async function cargar() {

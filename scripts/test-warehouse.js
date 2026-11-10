@@ -103,6 +103,14 @@ const R = Date.now();
     const pr = svc.todayMX(), ini = (d) => d, mesIni = pr.slice(0, 8) + '01', anioIni = pr.slice(0, 4) + '-01-01';
     t('ventas por periodo: mes empieza el día 1, año el 1 de enero, trimestre y semestre en su mes de inicio', vp.mes.desde === mesIni && vp.anio.desde === anioIni && /^\d{4}-(01|04|07|10)-01$/.test(vp.trimestre.desde) && /^\d{4}-(01|07)-01$/.test(vp.semestre.desde) && vp.hoy.desde === pr && vp.hoy.hasta === pr && new Date(vp.semana.desde + 'T12:00:00Z').getUTCDay() === 1);
     t('ventas por periodo: periodo inválido → 400 y sin sesión → 401', (await call('GET', '/api/reportes/ventas-periodo?periodo=ayer', undefined, admin)).s === 400 && (await call('GET', '/api/reportes/ventas-periodo?periodo=mes')).s === 401);
+    const h30 = (await call('GET', '/api/reportes/ventas-periodo?periodo=ultimos30', undefined, admin)).j, hy = svc.todayMX();
+    t('ventas por periodo: "últimos 30 días" va de hoy-29 a hoy', h30.hasta === hy && h30.desde === svc.addDays(hy, -29) && h30.unidad === 'day');
+    const rg1 = (await call('GET', `/api/reportes/ventas-periodo?periodo=rango&desde=${svc.addDays(hy, -90)}&hasta=${svc.addDays(hy, -10)}`, undefined, admin)).j;
+    const rg2 = (await call('GET', `/api/reportes/ventas?desde=${svc.addDays(hy, -90)}&hasta=${svc.addDays(hy, -10)}&agrupar=dia`, undefined, admin)).j;
+    t('ventas por periodo: un rango de fechas elegido coincide con Reportes para las mismas fechas', rg1.desde === svc.addDays(hy, -90) && rg1.hasta === svc.addDays(hy, -10) && rg1.pedidos === rg2.totales.pedidos && Math.abs(rg1.ventas - rg2.totales.ventas) < 0.02);
+    const un = (await call('GET', `/api/reportes/ventas-periodo?periodo=rango&desde=${hy}&hasta=${hy}`, undefined, admin)).j;
+    t('ventas por periodo: un rango de un solo día se detalla por hora y es igual a "hoy"', un.unidad === 'hour' && un.pedidos === (await call('GET', '/api/reportes/ventas-periodo?periodo=hoy', undefined, admin)).j.pedidos);
+    t('ventas por periodo: rango inválido (inicial posterior, faltan fechas, formato o más de 5 años) → 400', (await call('GET', `/api/reportes/ventas-periodo?periodo=rango&desde=${hy}&hasta=${svc.addDays(hy, -3)}`, undefined, admin)).s === 400 && (await call('GET', '/api/reportes/ventas-periodo?periodo=rango', undefined, admin)).s === 400 && (await call('GET', '/api/reportes/ventas-periodo?periodo=rango&desde=hola&hasta=mañana', undefined, admin)).s === 400 && (await call('GET', `/api/reportes/ventas-periodo?periodo=rango&desde=${svc.addDays(hy, -2000)}&hasta=${hy}`, undefined, admin)).s === 400);
     const mm = (await call('GET', `/api/reportes/ventas?desde=${vp.mes.desde}&hasta=${vp.mes.hasta}&agrupar=dia`, undefined, admin)).j;
     t('ventas por periodo: "este mes" coincide con Reportes para las mismas fechas', mm.totales.pedidos === vp.mes.pedidos && Math.abs(mm.totales.ventas - vp.mes.ventas) < 0.02 && Math.abs(mm.totales.utilidad - vp.mes.utilidad) < 0.05);
 

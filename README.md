@@ -264,7 +264,7 @@ Es ComboWeb App más la pestaña **Toma de decisiones** del administrador, con d
 - API (solo administrador): `/api/warehouse/*`.
 
 ### Dashboard: ventas por periodo
-- El Dashboard tiene un selector de periodo: hoy, esta semana (de lunes a hoy), este mes, trimestre, semestre, año e histórico total. Muestra ventas, pedidos, ticket promedio, utilidad bruta, margen y el detalle por hora, día, semana, mes o año según el periodo. API: `GET /api/reportes/ventas-periodo?periodo=...` (solo administrador). Usa los mismos pedidos que Reportes y el almacén de datos.
+- El Dashboard tiene un menú de periodo: día (hoy), semana (de lunes a hoy), mes, año, histórico total, últimos 30 días y **Elegir fechas**, que muestra dos calendarios (desde / hasta) y el botón Aplicar. Muestra ventas, pedidos, ticket promedio, utilidad bruta, margen y el detalle por hora, día, semana, mes o año según el periodo. API: `GET /api/reportes/ventas-periodo?periodo=hoy|semana|mes|anio|total|ultimos30|rango` (con `desde` y `hasta` para `rango`; máximo 5 años; solo administrador). Usa los mismos pedidos que Reportes y el almacén de datos.
 
 ### Combos en el pedido, el catálogo y Reportes
 - **Sin tamaño de caja:** el pedido ya no pide ni cobra presentación. El total es la suma de los productos y ya no se descuentan cajas del inventario. Las tablas viejas se conservan solo para los pedidos anteriores.
