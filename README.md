@@ -263,6 +263,11 @@ Es ComboWeb App más la pestaña **Toma de decisiones** del administrador, con d
 - Panel con indicadores, ventas por combo, una línea de conciliación con Reportes y "Exportar para Power BI" (4 CSV: 3 dimensiones y los hechos).
 - API (solo administrador): `/api/warehouse/*`.
 
+### Combos en el pedido, el catálogo y Reportes
+- Al armar un pedido, el cliente elige primero el **tipo de combo**: los cuatro prearmados (solo muestran sus dos productos y se piden por cantidad de combos) o el **Combo personalizado**, donde elige cualquier producto.
+- El precio de un combo prearmado es la suma de los precios de sus productos. El catálogo público y "Catálogo y precios" del administrador los listan (`GET /api/catalogo` incluye `combos`).
+- Reportes → Ventas por periodo muestra una tabla "Ventas por combo", con las mismas cifras que el almacén de datos.
+
 ### 4. Protección del código en el navegador
 - El servidor entrega los `.js` y `.css` de `public/` minificados (esbuild), sin comentarios ni mapas de código (`src/middleware/minificar.js`). `npm run test:proteccion` lo comprueba.
 - Aun así, lo que llega al navegador siempre se puede ver con F12: la protección real está en el servidor (sesiones, permisos por rol, validaciones, cálculos) y en mantener el repositorio privado.

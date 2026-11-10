@@ -2,13 +2,14 @@ const router = require('express').Router();
 const db = require('../db');
 const { wrap } = require('../util');
 const direccion = require('../services/direccion');
+const combos = require('../services/combos');
 
 router.get('/', wrap(async (req, res) => {
   const [productos, presentaciones] = await Promise.all([
     db.query('SELECT id,nombre,descripcion,precio FROM productos WHERE activo ORDER BY nombre'),
     db.query('SELECT id,nombre,precio FROM presentaciones WHERE activo ORDER BY precio'),
   ]);
-  res.json({ productos: productos.rows, presentaciones: presentaciones.rows });
+  res.json({ productos: productos.rows, presentaciones: presentaciones.rows, combos: combos.vigentes(productos.rows), combo_personalizado: { nombre: combos.PERSONALIZADO.nombre, descripcion: combos.DESCRIPCION.personalizado } });
 }));
 
 router.get('/codigo-postal/:cp', wrap(async (req, res) => {

@@ -3,6 +3,7 @@ const db = require('../db');
 const { auth, roles } = require('../middleware/auth');
 const { wrap } = require('../util');
 const svc = require('../services/pedidos');
+const { TODOS, comboDe } = require('../services/combos');
 
 router.use(auth, roles('admin'));
 
@@ -78,10 +79,17 @@ router.get('/ventas', wrap(async (req, res) => {
     `SELECT pd.nombre, sum(i.cantidad)::int AS piezas, sum(i.cantidad * i.precio_unitario) AS ventas FROM pedido_items i JOIN pedidos p ON p.id = i.pedido_id
        JOIN productos pd ON pd.id = i.producto_id WHERE ${FECHA} BETWEEN $1 AND $2 GROUP BY pd.nombre ORDER BY piezas DESC, pd.nombre LIMIT 10`, [rg.desde, rg.hasta])).rows
     .map((x) => ({ nombre: x.nombre, piezas: x.piezas, ventas: r2(x.ventas) }));
+  const pc = (await db.query(
+    `SELECT p.total, (SELECT COALESCE(sum(cantidad),0) FROM pedido_items WHERE pedido_id=p.id)::int AS piezas,
+            (SELECT array_agg(DISTINCT pr.nombre) FROM pedido_items pi JOIN productos pr ON pr.id=pi.producto_id WHERE pi.pedido_id=p.id) AS productos
+       FROM pedidos p WHERE ${FECHA} BETWEEN $1 AND $2`, [rg.desde, rg.hasta])).rows;
+  const acum = new Map(TODOS.map((c) => [c.clave, { nombre: c.nombre, productos: c.productos.join(' + ') || 'Cualquier mezcla', pedidos: 0, piezas: 0, ventas: 0 }]));
+  for (const x of pc) { const a = acum.get(comboDe(x.productos || []).clave); a.pedidos += 1; a.piezas += x.piezas; a.ventas += Number(x.total); }
+  const combos = [...acum.values()].map((x) => ({ ...x, ventas: r2(x.ventas) }));
   if (req.query.formato === 'csv')
     return csv(res, `ventas-${rg.desde}-a-${rg.hasta}`, ['Periodo', 'Pedidos', 'Ventas', 'Costo de insumos', 'Utilidad bruta'],
       [...periodos.map((x) => [x.periodo, x.pedidos, x.ventas.toFixed(2), x.costo.toFixed(2), x.utilidad.toFixed(2)]), ['TOTAL', totales.pedidos, totales.ventas.toFixed(2), totales.costo.toFixed(2), totales.utilidad.toFixed(2)]]);
-  res.json({ ...rg, agrupar, periodos, totales, top_productos: top });
+  res.json({ ...rg, agrupar, periodos, totales, top_productos: top, combos });
 }));
 
 router.get('/estatus', wrap(async (req, res) => {

@@ -47,7 +47,7 @@ function setSession(t, u) {
 }
 
 const nuevoDir = () => ({ cp: '', colonia: '', calle: '', ext: '', int: '', ref: '', municipio: '', colonias: [], manual: false, estadoCP: '' });
-const nuevoCombo = () => ({ q: {}, pres: null, ded: false, text: '', fecha: '', hora: '', dir: nuevoDir() });
+const nuevoCombo = () => ({ tipo: null, q: {}, pres: null, ded: false, text: '', fecha: '', hora: '', dir: nuevoDir() });
 let d = nuevoCombo();
 const cuerpo = () => ({ items: Object.entries(d.q).map(([id, c]) => ({ producto_id: Number(id), cantidad: c })), presentacion_id: d.pres, fecha: d.fecha, hora: d.hora, dedicatoria: d.ded ? d.text : '',
   direccion: { cp: d.dir.cp, colonia: d.dir.colonia, calle: d.dir.calle, num_ext: d.dir.ext, num_int: d.dir.int, referencias: d.dir.ref, ...(d.dir.manual ? { municipio: d.dir.municipio } : {}) } });
@@ -87,7 +87,7 @@ function buildArmar() {
     }, 250);
   };
 
-  const prods = el('div', { class: 'grid' }, cat.productos.map((p) => {
+  const construirProds = () => el('div', { class: 'grid' }, cat.productos.map((p) => {
     const cant = el('span', {}, String(d.q[p.id] || 0));
     const caja = el('div', { class: 'item' + (d.q[p.id] ? ' on' : '') });
     const cambia = (n) => () => {
@@ -100,6 +100,37 @@ function buildArmar() {
         el('button', { type: 'button', onclick: cambia(1), 'aria-label': 'Agregar ' + p.nombre }, '+')));
     return caja;
   }));
+  const tipos = [...(cat.combos || []), { clave: 'personalizado', nombre: (cat.combo_personalizado || {}).nombre || 'Combo personalizado', descripcion: (cat.combo_personalizado || {}).descripcion || '', productos: [] }];
+  if (!d.tipo && Object.keys(d.q).length) {
+    const ids = Object.keys(d.q).map(Number).sort().join();
+    const k = (cat.combos || []).find((c) => c.productos.map((x) => x.id).sort().join() === ids);
+    d.tipo = k ? k.clave : 'personalizado';
+  }
+  const prodsBox = el('div');
+  const selector = el('div', { class: 'grid', role: 'radiogroup', 'aria-label': 'Tipo de combo' });
+  const pintarProds = () => {
+    const t = tipos.find((x) => x.clave === d.tipo);
+    if (!t) { prodsBox.replaceChildren(el('p', { class: 'mu' }, 'Elige un tipo de combo para continuar.')); return; }
+    if (!t.productos.length) { prodsBox.replaceChildren(construirProds()); return; }
+    const n = d.q[t.productos[0].id] || 1;
+    const cant = el('span', {}, String(n));
+    const poner = (v) => { for (const x of t.productos) d.q[x.id] = v; cant.textContent = String(v); cotizar(); };
+    prodsBox.replaceChildren(el('div', { class: 'item on' },
+      el('b', {}, t.nombre), el('small', {}, t.productos.map((x) => `${x.nombre} ${money(x.precio)}`).join(' + ')), el('span', { class: 'p' }, money(t.precio) + ' por combo'),
+      el('div', { class: 'qty' }, el('button', { type: 'button', onclick: () => poner(Math.max(1, (d.q[t.productos[0].id] || 1) - 1)), 'aria-label': 'Quitar un combo' }, '–'), cant,
+        el('button', { type: 'button', onclick: () => poner(Math.min(50, (d.q[t.productos[0].id] || 1) + 1)), 'aria-label': 'Agregar un combo' }, '+')),
+      el('small', {}, 'Cantidad de combos')));
+  };
+  const elegirTipo = (t) => {
+    d.tipo = t.clave; d.q = {};
+    for (const x of t.productos) d.q[x.id] = 1;
+    selector.querySelectorAll('.opt').forEach((o) => o.classList.toggle('on', o.dataset.tipo === t.clave));
+    pintarProds(); cotizar();
+  };
+  tipos.forEach((t) => selector.append(el('label', { class: 'opt tipo' + (d.tipo === t.clave ? ' on' : ''), 'data-tipo': t.clave },
+    el('input', { type: 'radio', name: 'tipo', value: t.clave, checked: d.tipo === t.clave, onchange: () => elegirTipo(t) }),
+    el('span', {}, el('b', {}, t.nombre), el('br'), el('small', {}, t.productos.length ? t.productos.map((x) => x.nombre).join(' + ') + ' · ' + money(t.precio) : t.descripcion)))));
+  pintarProds();
   const pres = el('div', { class: 'grid' }, cat.presentaciones.map((p) => el('label', { class: 'opt' + (d.pres === p.id ? ' on' : '') },
     el('input', { type: 'radio', name: 'pres', value: p.id, checked: d.pres === p.id, onchange: (ev) => {
       d.pres = p.id; ev.target.closest('.grid').querySelectorAll('.opt').forEach((o) => o.classList.remove('on')); ev.target.closest('.opt').classList.add('on'); cotizar();
@@ -176,7 +207,7 @@ function buildArmar() {
   };
 
   root.append(el('div', { class: 'two' },
-    el('section', { class: 'card' }, el('h2', {}, '1. Elige tus productos'), prods, el('h2', {}, '2. Presentación'), pres,
+    el('section', { class: 'card' }, el('h2', {}, '1. Elige tu combo'), selector, prodsBox, el('h2', {}, '2. Presentación'), pres,
       el('h2', {}, '3. ¿Llevará dedicatoria?'), el('div', { class: 'seg' }, bSi, bNo), dedBox,
       el('h2', {}, '4. Fecha y hora de entrega'), el('div', { class: 'seg' }, fecha, hora),
       el('h2', {}, '5. Dirección de entrega'), dirBox, errores),
@@ -288,7 +319,7 @@ async function descargar(path, nombre) {
 }
 
 function card(parent, nombre, detalle, precio) {
-  parent.append(el('div', { class: 'item' }, el('b', {}, nombre), el('small', {}, detalle || ''), el('span', { class: 'p' }, money(precio))));
+  parent.append(el('div', { class: 'item' }, el('b', {}, nombre), el('small', {}, detalle || ''), precio == null ? null : el('span', { class: 'p' }, money(precio))));
 }
 function paint() {
   const cli = !!user && user.rol === 'cliente', staff = !!user && !cli;
@@ -299,6 +330,8 @@ function paint() {
   if (!user) $('#msg').hidden = true;
   if (cat && !cli) {
     $('#cat').replaceChildren(); $('#pres').replaceChildren();
+    (cat.combos || []).forEach((c) => card($('#cat'), c.nombre, c.productos.map((x) => x.nombre).join(' + '), c.precio));
+    card($('#cat'), (cat.combo_personalizado || {}).nombre || 'Combo personalizado', (cat.combo_personalizado || {}).descripcion || '', null);
     cat.productos.forEach((p) => card($('#cat'), p.nombre, p.descripcion, p.precio));
     cat.presentaciones.forEach((p) => card($('#pres'), p.nombre, '', p.precio));
   }

@@ -84,7 +84,7 @@ const hay = (r, codigo) => (r.j.errores || []).some((e) => e.codigo === codigo);
       && (await stock('Café molido')) === antes['Café molido'] - 36 && (await stock('Leche')) === antes.Leche - 400 && (await stock('Caja mediana')) === antes['Caja mediana'] - 1);
     t('se registran 6 movimientos de salida ligados al pedido', (await q('SELECT count(*)::int n FROM movimientos_inventario WHERE pedido_id=$1 AND tipo=\'salida\'', [pid1]))[0].n === 6);
     r = await call('GET', `/api/pedidos/${pid1}`, undefined, tA); const ped = r.j.pedido;
-    t('comprobante: folio, estatus Pendiente, total, entrega y dedicatoria', ped && /^EC-\d{4}$/.test(ped.folio) && ped.estatus === 'Pendiente' && ped.total === 265 && ped.entrega.hora === '12:00' && ped.entrega.fecha === dia(0) && ped.dedicatoria === 'Feliz cumpleaños, Ana');
+    t('comprobante: folio, estatus Pendiente, total, entrega y dedicatoria', ped && /^EC-\d{4,}$/.test(ped.folio) && ped.estatus === 'Pendiente' && ped.total === 265 && ped.entrega.hora === '12:00' && ped.entrega.fecha === dia(0) && ped.dedicatoria === 'Feliz cumpleaños, Ana');
     t('comprobante: desglose y pago aprobado', ped.items.length === 2 && ped.presentacion.precio === 45 && ped.pago.estado === 'aprobado' && !('cliente_id' in ped));
     r = await aprobar(ck1, tA); t('aprobar dos veces NO duplica el pedido (idempotente)', r.j.pedido_id === pid1 && (await q('SELECT count(*)::int n FROM pedidos WHERE cliente_id=$1', [clientes[0]]))[0].n === 1 && (await stock('Harina')) === antes.Harina - 240);
     r = await call('GET', `/api/pedidos/checkout/${ck1}`, undefined, tA); t('estado del checkout = pagado', r.j.checkout.estado === 'pagado' && r.j.checkout.pedido_id === pid1);

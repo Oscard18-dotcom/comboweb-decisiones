@@ -68,15 +68,18 @@
 
   Personal.registrar('cat', 'Catálogo y precios', ['admin'], 4.5, (cont, H) => {
     const { e, api, chipC } = H;
-    const err = e('div', { class: 'errbox', role: 'alert' }), msg = e('p', { class: 'okmsg', role: 'status' }), prods = e('div', { class: 'card tw' }), pres = e('div', { class: 'card tw' });
+    const err = e('div', { class: 'errbox', role: 'alert' }), msg = e('p', { class: 'okmsg', role: 'status' }), prods = e('div', { class: 'card tw' }), combosT = e('div', { class: 'card tw' }), pres = e('div', { class: 'card tw' });
     cont.append(e('p', { class: 'mu' }, 'Los cambios de precio aplican a los pedidos nuevos; los pedidos ya pagados conservan su precio. Para crear productos o editar sus recetas usa “Recetas y costeo”.'), err, msg,
-      e('h3', {}, 'Productos'), prods, e('h3', { style: 'margin-top:14px' }, 'Presentaciones (cajas)'), pres);
+      e('h3', {}, 'Productos'), prods, e('h3', { style: 'margin-top:14px' }, 'Combos'), combosT, e('h3', { style: 'margin-top:14px' }, 'Presentaciones (cajas)'), pres);
     const ok = (t) => { msg.textContent = t; err.replaceChildren(); };
     const mal = (er) => { msg.textContent = ''; err.replaceChildren(e('div', {}, er.message)); };
     const precio = (v) => e('input', { type: 'number', min: '0', step: '0.01', value: String(v), 'aria-label': 'Precio', style: 'width:100px' });
     async function cargar() {
       try {
-        const [p, r] = await Promise.all([api('/admin/productos'), api('/admin/presentaciones')]);
+        const [p, r, ct] = await Promise.all([api('/admin/productos'), api('/admin/presentaciones'), api('/catalogo')]);
+        combosT.replaceChildren(e('table', {}, e('thead', {}, e('tr', {}, ['Combo', 'Productos', 'Precio (MXN)'].map((x) => e('th', {}, x)))),
+          e('tbody', {}, ...ct.combos.map((c) => e('tr', {}, e('td', {}, c.nombre), e('td', {}, c.productos.map((x) => x.nombre).join(' + ')), e('td', {}, '$' + c.precio.toFixed(2)))), e('tr', {}, e('td', {}, ct.combo_personalizado.nombre), e('td', {}, 'El cliente elige los productos'), e('td', {}, 'Suma de lo que elija')))),
+          e('p', { class: 'mu' }, 'El precio de cada combo es la suma de los precios de sus productos: al cambiar el precio de un producto, el combo se actualiza solo.'));
         prods.replaceChildren(e('table', {}, e('thead', {}, e('tr', {}, ['Producto', 'Precio de venta (MXN)', 'Receta', 'Estado', 'Acciones'].map((x) => e('th', {}, x)))),
           e('tbody', {}, p.productos.map((x) => {
             const inp = precio(x.precio);

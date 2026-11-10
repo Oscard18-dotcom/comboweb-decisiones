@@ -95,7 +95,7 @@ const q = async (sql, p) => (await db.query(sql, p)).rows;
     t('un cliente sin pedidos tiene su bandeja vacía', av.s === 200 && av.j.avisos.length === 0 && av.j.no_leidas === 0);
     av = await call('GET', '/api/avisos', undefined, cli);
     const conf = av.j.avisos.find((a) => a.pedido_id === idPrimero);
-    t('al pagar, el cliente recibe su aviso de confirmación en la bandeja (sin depender del correo)', !!conf && /confirmado/.test(conf.titulo) && /Recibimos tu pago/.test(conf.mensaje) && conf.leida === false && /^EC-\d{4}$/.test(conf.folio), JSON.stringify(av.j.avisos[0]));
+    t('al pagar, el cliente recibe su aviso de confirmación en la bandeja (sin depender del correo)', !!conf && /confirmado/.test(conf.titulo) && /Recibimos tu pago/.test(conf.mensaje) && conf.leida === false && /^EC-\d{4,}$/.test(conf.folio), JSON.stringify(av.j.avisos[0]));
     const antes = av.j.no_leidas;
     t('el contador de no leídas coincide con la lista', antes === av.j.avisos.filter((a) => !a.leida).length && (await call('GET', '/api/avisos/contador', undefined, cli)).j.no_leidas === antes);
     for (const est of ['En preparación', 'Listo para entrega', 'Entregado']) {

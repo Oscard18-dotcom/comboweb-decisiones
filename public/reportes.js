@@ -84,6 +84,8 @@
                 e('tr', { class: 'total' }, e('td', {}, 'Suma'), e('td', { class: 'n' }, String(d.totales.pedidos)), mon(e, d.totales.ventas), mon(e, d.totales.costo), mon(e, d.totales.utilidad))))
               : e('p', { class: 'mu' }, 'No hay ventas en este periodo.'),
             d.periodos.length ? e('p', { class: 'mu' }, `Margen de utilidad bruta: ${d.totales.margen_pct} %. El costo usa los costos unitarios vigentes de los insumos.`) : null),
+            d.combos && d.totales.pedidos ? e('div', { class: 'card tw' }, e('h3', {}, 'Ventas por combo'), e('table', { class: 'contable' }, e('thead', {}, e('tr', {}, th('Combo'), th('Productos'), th('Pedidos', 1), th('Piezas', 1), th('Ventas', 1))),
+              e('tbody', {}, ...d.combos.map((x) => e('tr', {}, e('td', {}, x.nombre), e('td', {}, x.productos), e('td', { class: 'n' }, String(x.pedidos)), e('td', { class: 'n' }, String(x.piezas)), mon(e, x.ventas)))))) : null,
             d.top_productos.length ? e('div', { class: 'card tw' }, e('h3', {}, 'Productos más vendidos'), e('table', { class: 'contable' }, e('thead', {}, e('tr', {}, th('Producto'), th('Piezas', 1), th('Ventas', 1))),
               e('tbody', {}, ...d.top_productos.map((x) => e('tr', {}, e('td', {}, x.nombre), e('td', { class: 'n' }, String(x.piezas)), mon(e, x.ventas)))))) : null);
         } else if (tipo === 'decisiones') {

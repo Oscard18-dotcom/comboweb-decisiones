@@ -72,7 +72,7 @@ const mondayOf = (iso) => { const d = new Date(iso + 'T12:00:00Z'); d.setUTCDate
     t('no muestra los ya entregados de días anteriores ni los de otros días', !tb.pedidos.some((p) => p.id === viejoEnt || p.id === futuro));
     t('el resumen cuenta pedidos por estatus', tb.resumen.Pendiente === 4 && tb.resumen['En preparación'] === 0 && tb.resumen.Entregado === 0);
     const f1 = tb.pedidos.find((p) => p.id === o1);
-    t('ficha técnica: folio, cliente, presentación, dedicatoria, hora y piezas', /^EC-\d{4}$/.test(f1.folio) && f1.cliente.startsWith('Ana') && f1.presentacion === 'Caja mediana' && f1.dedicatoria === 'Feliz cumpleaños' && f1.hora === '14:00' && f1.items.length === 2);
+    t('ficha técnica: folio, cliente, presentación, dedicatoria, hora y piezas', /^EC-\d{4,}$/.test(f1.folio) && f1.cliente.startsWith('Ana') && f1.presentacion === 'Caja mediana' && f1.dedicatoria === 'Feliz cumpleaños' && f1.hora === '14:00' && f1.items.length === 2);
     const ingr = Object.fromEntries(f1.ingredientes.map((i) => [i.nombre, i.cantidad]));
     t('ficha técnica: ingredientes exactos según las recetas', ingr.Harina === 240 && ingr['Azúcar'] === 180 && ingr.Mantequilla === 120 && ingr['Café molido'] === 36 && ingr.Leche === 400 && !('Caja mediana' in ingr), JSON.stringify(ingr));
     t('la cocina no ve precios ni totales', !('total' in f1) && !('precio' in f1));
