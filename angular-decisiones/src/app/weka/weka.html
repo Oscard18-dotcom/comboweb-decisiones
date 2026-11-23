@@ -1,8 +1,3 @@
-<div class="card">
-  <p class="rotulo">Weka 3.9.6</p>
-  <p>Descarga los datos del almacén listos para abrirlos en <b>Weka</b> (Explorer → Open file). Hay un archivo para cada decisión; elige el formato <b>ARFF</b> (recomendado) o <b>CSV</b>.</p>
-</div>
-
 @if (error()) { <p class="err" role="alert">{{ error() }}</p> }
 @if (exito()) { <p class="okmsg" role="status">{{ exito() }}</p> }
 @if (cargando()) { <p class="mu" role="status">Preparando los datos…</p> }
@@ -11,15 +6,10 @@
   <div class="card" [attr.data-weka]="d.id">
     <p class="rotulo">{{ d.titulo }}</p>
     <p>{{ d.pregunta }}</p>
-    <p class="mu">{{ d.filas | number }} filas · {{ d.atributos }} atributos · clase: {{ d.clase }}</p>
-    <p class="mu"><b>En Weka:</b> {{ d.pasos }}</p>
     <div class="row filtros">
       <button class="mini" type="button" [attr.data-acc]="'arff-' + d.id" [disabled]="ocupado() || d.filas === 0" (click)="bajar(d.id, 'arff')">Descargar ARFF</button>
       <button class="mini" type="button" [attr.data-acc]="'csv-' + d.id" [disabled]="ocupado() || d.filas === 0" (click)="bajar(d.id, 'csv')">Descargar CSV</button>
     </div>
     @if (d.filas === 0) { <p class="mu" role="status">{{ d.vacio }}</p> }
   </div>
-}
-@if (!cargando() && datos().length) {
-  <p class="mu">Guía paso a paso: documento «Guía de minería de datos con Weka» (carpeta docs).</p>
 }

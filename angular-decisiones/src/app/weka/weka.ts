@@ -1,11 +1,9 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
-import { DecimalPipe } from '@angular/common';
 import { Api, descargar } from '../core/api';
 import { ConjuntoWeka } from '../core/modelos';
 
 @Component({
   selector: 'app-weka',
-  imports: [DecimalPipe],
   templateUrl: './weka.html',
 })
 export class Weka implements OnInit {

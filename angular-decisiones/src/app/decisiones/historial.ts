@@ -1,5 +1,5 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
-import { Api, fechaHora, irA } from '../core/api';
+import { Api, fechaHora } from '../core/api';
 import { DecisionRegistrada } from '../core/modelos';
 
 const BASES: Record<string, string> = { consenso: 'Consenso de los criterios', maximin: 'Maximin (Wald)', maximax: 'Maximax', laplace: 'Laplace', hurwicz: 'Hurwicz', savage: 'Savage (arrepentimiento)', vme: 'VME (valor monetario esperado)' };
@@ -9,8 +9,6 @@ const BASES: Record<string, string> = { consenso: 'Consenso de los criterios', m
   template: `
     <section class="card">
       <p class="rotulo">Libro de decisiones</p>
-      <p class="mu">Cada decisión queda con lo que decía cada criterio en ese momento. El resumen por periodo está en Reportes, sección “Decisiones registradas”.
-        <button type="button" class="vinculo" data-ir="rep" (click)="ir('rep')">Abrir Reportes</button></p>
     </section>
     @if (error()) { <p class="err" role="alert">{{ error() }}</p> }
     @if (cargando()) { <p class="mu" role="status">Cargando…</p> }
@@ -35,7 +33,6 @@ const BASES: Record<string, string> = { consenso: 'Consenso de los criterios', m
 export class Historial implements OnInit {
   private api = inject(Api);
   readonly fh = fechaHora;
-  readonly ir = irA;
   lista = signal<DecisionRegistrada[]>([]);
   error = signal('');
   cargando = signal(true);
