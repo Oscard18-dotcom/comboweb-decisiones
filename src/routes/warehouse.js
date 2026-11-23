@@ -18,12 +18,12 @@ router.post('/cargar', wrap(async (req, res) => {
 router.delete('/demo', wrap(async (req, res) => res.json({ ok: true, borradas: await wh.quitarDemo() })));
 router.get('/exportar', wrap(async (req, res) => res.json(await wh.exportar())));
 
-// Conjuntos de datos para Weka (ARFF o CSV). Todo se arma en el servidor; el id se valida contra una lista fija.
+// Conjuntos de datos para Weka (formato ARFF). Todo se arma en el servidor; el id se valida contra una lista fija.
 router.get('/weka', wrap(async (req, res) => res.json(await weka.catalogo())));
 router.get('/weka/:id', wrap(async (req, res) => {
   const id = String(req.params.id);
   if (!weka.IDS.includes(id)) return res.status(404).json({ error: 'Ese conjunto de datos no existe.' });
-  try { res.json(await weka.descargar(id, String(req.query.formato || 'arff'))); }
+  try { res.json(await weka.descargar(id)); }
   catch (e) { if (e.status >= 400 && e.status < 500) return res.status(e.status).json({ error: e.message }); throw e; }
 }));
 

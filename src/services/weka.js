@@ -1,4 +1,4 @@
-// Conjuntos de datos para Weka 3.9.6, construidos a partir del almacén de datos (esquema dw).
+// Conjuntos de datos para Weka 3.9.6 (formato ARFF), construidos a partir del almacén de datos (esquema dw).
 // Todo se genera en el servidor (Node); el navegador solo recibe y descarga los archivos.
 const db = require('../db');
 const wh = require('./warehouse');
@@ -112,9 +112,6 @@ function aArff(ds) {
   for (const f of ds.filas) l.push(f.map((v) => (v === null || v === undefined ? '?' : String(v))).join(','));
   return l.join('\n') + '\n';
 }
-function aCsv(ds) {
-  return [ds.atributos.map((a) => a.nombre).join(','), ...ds.filas.map((f) => f.map((v) => (v === null || v === undefined ? '' : String(v))).join(','))].join('\n') + '\n';
-}
 
 // ---------- API del servicio ----------
 async function construir(id) {
@@ -133,12 +130,11 @@ async function catalogo() {
   return { datasets: out, weka: 'Weka 3.9.6', demo: (await demo.hay(db)) > 0, demo_proveedores: (await demo.hayProveedores(db)) > 0 };
 }
 
-async function descargar(id, formato = 'arff') {
-  if (formato !== 'arff' && formato !== 'csv') throw Object.assign(new Error('Formato no válido. Usa arff o csv.'), { status: 400 });
+async function descargar(id) {
   await wh.sincronizar();
   const ds = await construir(id);
   if (!ds.filas.length) throw Object.assign(new Error(CATALOGO.find((c) => c.id === id).vacio), { status: 409 });
-  return { archivos: [{ nombre: `${ds.relacion}.${formato}`, contenido: formato === 'arff' ? aArff(ds) : aCsv(ds), formato }] };
+  return { archivos: [{ nombre: `${ds.relacion}.arff`, contenido: aArff(ds), formato: 'arff' }] };
 }
 
-module.exports = { catalogo, descargar, construir, aArff, aCsv, slug, IDS, CATALOGO };
+module.exports = { catalogo, descargar, construir, aArff, slug, IDS, CATALOGO };

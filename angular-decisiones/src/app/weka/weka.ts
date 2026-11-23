@@ -26,10 +26,10 @@ export class Weka implements OnInit {
     this.cargando.set(false);
   }
 
-  async bajar(id: string, formato: 'arff' | 'csv') {
+  async bajar(id: string) {
     this.ocupado.set(true); this.error.set(''); this.exito.set('');
     try {
-      const x = await this.api.descargarWeka(id, formato);
+      const x = await this.api.descargarWeka(id);
       descargar(x.archivos);
       this.exito.set(`Se descargó ${x.archivos[0].nombre}. Ábrelo en Weka con Explorer → Open file.`);
     } catch (e) { this.error.set((e as Error).message); }

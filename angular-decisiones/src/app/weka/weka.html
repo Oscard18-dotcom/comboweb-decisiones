@@ -7,8 +7,7 @@
     <p class="rotulo">{{ d.titulo }}</p>
     <p>{{ d.pregunta }}</p>
     <div class="row filtros">
-      <button class="mini" type="button" [attr.data-acc]="'arff-' + d.id" [disabled]="ocupado() || d.filas === 0" (click)="bajar(d.id, 'arff')">Descargar ARFF</button>
-      <button class="mini" type="button" [attr.data-acc]="'csv-' + d.id" [disabled]="ocupado() || d.filas === 0" (click)="bajar(d.id, 'csv')">Descargar CSV</button>
+      <button class="mini" type="button" [attr.data-acc]="'arff-' + d.id" [disabled]="ocupado() || d.filas === 0" (click)="bajar(d.id)">Descargar ARFF</button>
     </div>
     @if (d.filas === 0) { <p class="mu" role="status">{{ d.vacio }}</p> }
   </div>

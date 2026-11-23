@@ -43,7 +43,7 @@ function leerArff(txt) {
     const login = async (c) => (await call('POST', '/api/auth/login', { correo: c, password: process.env.SEED_PASSWORD })).j.token;
     const admin = await login('admin@encombo.test'), cocina = await login('cocina@encombo.test'), almacen = await login('almacen@encombo.test');
     const rc = await call('POST', '/api/auth/register', { nombre: 'Cliente Weka', correo: `weka${Date.now()}@prueba.test`, password: 'secreta123' }); const cli = rc.j.token;
-    const rutas = ['/api/warehouse/weka', '/api/warehouse/weka/produccion_diaria', '/api/warehouse/weka/proveedor', '/api/warehouse/weka/combo_temporada?formato=csv'];
+    const rutas = ['/api/warehouse/weka', '/api/warehouse/weka/produccion_diaria', '/api/warehouse/weka/proveedor', '/api/warehouse/weka/combo_temporada'];
     for (const [n, tok] of [['sin sesión', undefined], ['cliente', cli], ['cocina', cocina], ['almacén', almacen]]) {
       const r = await Promise.all(rutas.map((x) => call('GET', x, undefined, tok)));
       const esp = tok ? 403 : 401; t(`${n}: catálogo y descargas de Weka → ${esp}`, r.every((x) => x.s === esp), r.map((x) => x.s).join());
@@ -69,7 +69,7 @@ function leerArff(txt) {
 
     const hechos = (await q('SELECT count(*)::int n FROM dw.fact_ventas')).n;
     const dias = (await q('SELECT count(*)::int n FROM dw.dim_fecha WHERE fecha BETWEEN (SELECT min(fecha) FROM dw.dim_fecha WHERE fecha_key IN (SELECT fecha_key FROM dw.fact_ventas)) AND (SELECT max(fecha) FROM dw.dim_fecha WHERE fecha_key IN (SELECT fecha_key FROM dw.fact_ventas))')).n;
-    const get = async (id, f = 'arff') => (await call('GET', `/api/warehouse/weka/${id}?formato=${f}`, undefined, admin));
+    const get = async (id) => (await call('GET', `/api/warehouse/weka/${id}`, undefined, admin));
 
     for (const id of weka.IDS) {
       r = await get(id);
@@ -77,8 +77,6 @@ function leerArff(txt) {
       t(`${id}.arff: formato ARFF válido (relación, atributos, @DATA, valores dentro de su dominio)`, r.s === 200 && r.j.archivos.length === 1 && a.nombre === `${id}.arff` && x.rel === id && x.datos && x.attrs.length >= 5 && x.errores.length === 0, x.errores.slice(0, 3).join(' | '));
       t(`${id}.arff: sin acentos ni espacios en nombres y valores nominales`, x.attrs.every((y) => /^[a-z0-9_]+$/.test(y.n) && (y.num || y.v.every((v) => /^[a-z0-9_]+$/.test(v)))));
       t(`${id}.arff: el catálogo y la descarga tienen el mismo número de filas`, ds.find((d) => d.id === id).filas === x.filas.length, `${x.filas.length}`);
-      const c = await get(id, 'csv'); const l = c.j.archivos[0].contenido.split('\n').filter(Boolean);
-      t(`${id}.csv: encabezado con los nombres de los atributos y las mismas filas que el ARFF`, c.s === 200 && c.j.archivos[0].nombre === `${id}.csv` && l[0] === x.attrs.map((y) => y.n).join(',') && l.length === x.filas.length + 1);
     }
 
     const prod = leerArff((await get('produccion_diaria')).j.archivos[0].contenido);
@@ -105,8 +103,8 @@ function leerArff(txt) {
       const m = await call('GET', `/api/warehouse/weka/${mal}`, undefined, admin);
       t(`id no permitido «${mal}» → 404 sin filtrar datos`, m.s === 404 && !/@RELATION/.test(m.texto), m.s);
     }
-    r = await get('produccion_diaria', 'exe');
-    t('formato no válido → 400 con mensaje', r.s === 400 && /Formato no válido/.test(r.j.error || ''), r.texto);
+    r = await call('GET', '/api/warehouse/weka/produccion_diaria?formato=csv', undefined, admin);
+    t('solo se entrega ARFF (el parámetro formato ya no existe)', r.s === 200 && r.j.archivos.length === 1 && r.j.archivos[0].nombre === 'produccion_diaria.arff');
 
     await wh.quitarDemo();
     t('quitar la demostración elimina también a los proveedores de demostración y sus pedidos', (await q("SELECT count(*)::int n FROM proveedores WHERE correo LIKE '%@proveedor.demo.encombo.test'")).n === 0 && (await q("SELECT count(*)::int n FROM pedidos_proveedor WHERE nota='Pedido de demostración'")).n === 0);

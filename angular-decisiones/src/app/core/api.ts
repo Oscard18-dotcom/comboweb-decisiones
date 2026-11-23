@@ -34,7 +34,7 @@ export class Api {
   cargarWarehouse(demo: boolean) { return this.ir(this.http.post<{ ok: boolean; pedidos: number; demo: number | null }>('/api/warehouse/cargar', { demo })); }
   quitarDemo() { return this.ir(this.http.delete<{ ok: boolean; borradas: number }>('/api/warehouse/demo')); }
   conjuntosWeka() { return this.ir(this.http.get<CatalogoWeka>('/api/warehouse/weka')); }
-  descargarWeka(id: string, formato: 'arff' | 'csv') { return this.ir(this.http.get<{ archivos: Archivo[] }>(`/api/warehouse/weka/${encodeURIComponent(id)}?formato=${formato}`)); }
+  descargarWeka(id: string) { return this.ir(this.http.get<{ archivos: Archivo[] }>(`/api/warehouse/weka/${encodeURIComponent(id)}`)); }
   exportarWarehouse() { return this.ir(this.http.get<{ archivos: Archivo[] }>('/api/warehouse/exportar')); }
 }
 
