@@ -1,57 +1,25 @@
 <div class="card">
-  <p class="rotulo">Minería de datos con Weka 3.9.6</p>
-  <p>Weka es el programa que usamos en clase para hacer minería de datos. Aquí se preparan los datos del <b>almacén de datos</b> en el formato que Weka entiende (<b>ARFF</b>), listos para descargar y abrir. No hay que limpiar ni acomodar nada a mano.</p>
-  <p class="mu">Los archivos se arman en el servidor a partir de las ventas del almacén y se descargan en tu computadora. La aplicación no se conecta a Weka: tú abres el archivo en Weka y analizas los resultados.</p>
+  <p class="rotulo">Weka 3.9.6</p>
+  <p>Descarga los datos del almacén listos para abrirlos en <b>Weka</b> (Explorer → Open file). Hay un archivo para cada decisión; elige el formato <b>ARFF</b> (recomendado) o <b>CSV</b>.</p>
 </div>
 
 @if (error()) { <p class="err" role="alert">{{ error() }}</p> }
 @if (exito()) { <p class="okmsg" role="status">{{ exito() }}</p> }
 @if (cargando()) { <p class="mu" role="status">Preparando los datos…</p> }
 
-@if (!cargando() && datos().length) {
-  <div class="row filtros" role="group" aria-label="Formato de descarga">
-    <span class="mu">Formato:</span>
-    <button class="mini" type="button" data-fmt="arff" [class.on]="formato() === 'arff'" [attr.aria-pressed]="formato() === 'arff'" (click)="elegir('arff')">ARFF (recomendado)</button>
-    <button class="mini" type="button" data-fmt="csv" [class.on]="formato() === 'csv'" [attr.aria-pressed]="formato() === 'csv'" (click)="elegir('csv')">CSV</button>
-    <button class="mini" type="button" data-acc="bajar-todos" [disabled]="ocupado()" (click)="bajar('todos')">Descargar los 4 archivos</button>
-  </div>
-
-  @for (d of datos(); track d.id) {
-    <div class="card" [attr.data-weka]="d.id">
-      <p class="rotulo">{{ d.tarea }} · {{ d.titulo }}</p>
-      <p><b>Pregunta:</b> {{ d.pregunta }}</p>
-      <p class="mu"><b>Apoya la decisión de:</b> {{ d.decision }}</p>
-      <p class="mu">{{ d.filas | number }} filas · {{ d.atributos.length }} atributos{{ d.clase ? ' · clase: ' + d.clase : '' }}</p>
-      <p class="mu"><b>En Weka:</b> {{ d.pasos }}</p>
-      <p class="mu"><b>Algoritmos sugeridos:</b>&nbsp;
-        @for (a of d.algoritmos; track a; let u = $last) {<code title="{{ a }}">{{ nombreCorto(a) }}</code>{{ u ? '' : ', ' }}}
-      </p>
-      <div class="row filtros">
-        <button class="mini" type="button" [attr.data-acc]="'bajar-' + d.id" [disabled]="ocupado() || d.filas === 0" (click)="bajar(d.id)">Descargar {{ formato() === 'arff' ? 'ARFF' : 'CSV' }}</button>
-        <button class="mini" type="button" [attr.data-acc]="'ver-' + d.id" [attr.aria-expanded]="abierto() === d.id" (click)="ver(d.id)">{{ abierto() === d.id ? 'Ocultar vista previa' : 'Ver vista previa' }}</button>
-      </div>
-      @if (d.filas === 0) { <p class="mu" role="status">Todavía no hay ventas en el almacén. Ve a «Almacén de datos» para cargarlas.</p> }
-      @if (abierto() === d.id && d.filas > 0) {
-        <div class="tw">
-          <table [attr.data-vista]="d.id">
-            <thead><tr>@for (a of d.atributos; track a.nombre) {<th scope="col">{{ a.nombre }}<br><span class="mu">{{ a.tipo }}</span></th>}</tr></thead>
-            <tbody>@for (f of d.vista; track $index) {<tr>@for (v of f; track $index) {<td>{{ v }}</td>}</tr>}</tbody>
-          </table>
-        </div>
-        @for (n of d.notas; track n) { <p class="mu">{{ n }}</p> }
-      }
+@for (d of datos(); track d.id) {
+  <div class="card" [attr.data-weka]="d.id">
+    <p class="rotulo">{{ d.titulo }}</p>
+    <p>{{ d.pregunta }}</p>
+    <p class="mu">{{ d.filas | number }} filas · {{ d.atributos }} atributos · clase: {{ d.clase }}</p>
+    <p class="mu"><b>En Weka:</b> {{ d.pasos }}</p>
+    <div class="row filtros">
+      <button class="mini" type="button" [attr.data-acc]="'arff-' + d.id" [disabled]="ocupado() || d.filas === 0" (click)="bajar(d.id, 'arff')">Descargar ARFF</button>
+      <button class="mini" type="button" [attr.data-acc]="'csv-' + d.id" [disabled]="ocupado() || d.filas === 0" (click)="bajar(d.id, 'csv')">Descargar CSV</button>
     </div>
-  }
-
-  <div class="card">
-    <p class="rotulo">Cómo abrir los archivos en Weka</p>
-    <ol>
-      <li>Abre <b>Weka 3.9.6</b> y elige <b>Explorer</b>.</li>
-      <li>En la pestaña <b>Preprocess</b> pulsa <b>Open file…</b> y elige el archivo descargado (.arff).</li>
-      <li>Revisa los atributos de la izquierda y la gráfica de la derecha. Si ves los datos, el archivo cargó bien.</li>
-      <li>Pasa a la pestaña que corresponde: <b>Classify</b> (regresión y clasificación), <b>Associate</b> (reglas) o <b>Cluster</b> (agrupamiento).</li>
-      <li>Interpreta el resultado y úsalo como apoyo en la matriz de decisiones.</li>
-    </ol>
-    <p class="mu">La guía paso a paso, con qué leer en cada resultado, está en el documento «Guía de minería de datos con Weka» (carpeta docs).</p>
+    @if (d.filas === 0) { <p class="mu" role="status">{{ d.vacio }}</p> }
   </div>
+}
+@if (!cargando() && datos().length) {
+  <p class="mu">Guía paso a paso: documento «Guía de minería de datos con Weka» (carpeta docs).</p>
 }

@@ -37,6 +37,6 @@ export class App {
     { k: 'analizar', n: 'Analizar una decisión' },
     { k: 'hist', n: 'Decisiones registradas' },
     { k: 'dw', n: 'Almacén de datos' },
-    { k: 'weka', n: 'Minería con Weka' },
+    { k: 'weka', n: 'Weka' },
   ];
 }

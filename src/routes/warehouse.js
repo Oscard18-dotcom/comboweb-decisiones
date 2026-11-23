@@ -22,7 +22,7 @@ router.get('/exportar', wrap(async (req, res) => res.json(await wh.exportar())))
 router.get('/weka', wrap(async (req, res) => res.json(await weka.catalogo())));
 router.get('/weka/:id', wrap(async (req, res) => {
   const id = String(req.params.id);
-  if (id !== 'todos' && !weka.IDS.includes(id)) return res.status(404).json({ error: 'Ese conjunto de datos no existe.' });
+  if (!weka.IDS.includes(id)) return res.status(404).json({ error: 'Ese conjunto de datos no existe.' });
   try { res.json(await weka.descargar(id, String(req.query.formato || 'arff'))); }
   catch (e) { if (e.status >= 400 && e.status < 500) return res.status(e.status).json({ error: e.message }); throw e; }
 }));

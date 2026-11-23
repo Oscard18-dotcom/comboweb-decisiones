@@ -21,9 +21,10 @@ export interface DecisionRegistrada {
 }
 export interface Archivo { nombre: string; contenido: string; }
 export interface ConjuntoWeka {
-  id: string; titulo: string; tarea: string; pregunta: string; decision: string; clase: string | null;
-  algoritmos: string[]; pasos: string; filas: number; atributos: { nombre: string; tipo: string }[]; vista: string[][]; notas: string[];
+  id: string; titulo: string; tarea: string; pregunta: string; clase: string | null;
+  algoritmos: string[]; pasos: string; vacio: string; filas: number; atributos: number;
 }
+export interface CatalogoWeka { datasets: ConjuntoWeka[]; weka: string; demo: boolean; demo_proveedores: boolean; }
 
 export interface ResumenWarehouse {
   filas: { pedidos: number }; ultima_carga: { creado_en: string; tipo: string; filas: number; detalle: string } | null;

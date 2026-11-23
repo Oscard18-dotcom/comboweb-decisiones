@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpErrorResponse, HttpInterceptorFn } from '@angular/common/http';
 import { Observable, catchError, firstValueFrom, throwError } from 'rxjs';
-import { Archivo, Caso, ConjuntoWeka, DashboardSistema, VentasSistema, Criterio, DecisionRegistrada, Evaluacion, Matriz, ResumenWarehouse } from './modelos';
+import { Archivo, Caso, CatalogoWeka, DashboardSistema, VentasSistema, Criterio, DecisionRegistrada, Evaluacion, Matriz, ResumenWarehouse } from './modelos';
 
 export const conSesion: HttpInterceptorFn = (req, next) => {
   let token: string | null = null;
@@ -33,7 +33,7 @@ export class Api {
   resumen() { return this.ir(this.http.get<ResumenWarehouse>('/api/warehouse/resumen')); }
   cargarWarehouse(demo: boolean) { return this.ir(this.http.post<{ ok: boolean; pedidos: number; demo: number | null }>('/api/warehouse/cargar', { demo })); }
   quitarDemo() { return this.ir(this.http.delete<{ ok: boolean; borradas: number }>('/api/warehouse/demo')); }
-  conjuntosWeka() { return this.ir(this.http.get<{ datasets: ConjuntoWeka[]; weka: string }>('/api/warehouse/weka')); }
+  conjuntosWeka() { return this.ir(this.http.get<CatalogoWeka>('/api/warehouse/weka')); }
   descargarWeka(id: string, formato: 'arff' | 'csv') { return this.ir(this.http.get<{ archivos: Archivo[] }>(`/api/warehouse/weka/${encodeURIComponent(id)}?formato=${formato}`)); }
   exportarWarehouse() { return this.ir(this.http.get<{ archivos: Archivo[] }>('/api/warehouse/exportar')); }
 }

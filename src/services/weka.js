@@ -18,36 +18,28 @@ const num = (nombre) => ({ nombre, tipo: 'numerico' });
 // ---------- Catálogo (texto que ve la persona y sugerencias para Weka) ----------
 const CATALOGO = [
   {
-    id: 'demanda_diaria', titulo: 'Demanda diaria por combo', tarea: 'Regresión',
-    pregunta: '¿Cuántas piezas se venderán de cada combo según el mes, el día de la semana y la temporada?',
-    decision: 'Producción diaria y combo de temporada',
+    id: 'combo_temporada', titulo: 'Combo de temporada', tarea: 'Clasificación y reglas de asociación',
+    pregunta: '¿Qué combo se vende más en cada temporada, mes y día de la semana?',
+    clase: 'combo',
+    algoritmos: ['weka.classifiers.trees.J48', 'weka.associations.Apriori'],
+    pasos: 'Classify → J48 (clase: combo) para ver qué combo domina en cada temporada; o Associate → Apriori para obtener reglas.',
+    vacio: 'Todavía no hay ventas en el almacén. Abre «Almacén de datos» para cargarlas.',
+  },
+  {
+    id: 'produccion_diaria', titulo: 'Producción diaria', tarea: 'Regresión',
+    pregunta: '¿Cuántas piezas de cada combo conviene preparar según el mes, el día y la temporada?',
     clase: 'piezas',
-    algoritmos: ['weka.classifiers.functions.LinearRegression', 'weka.classifiers.trees.M5P', 'weka.classifiers.functions.MultilayerPerceptron'],
-    pasos: 'Pestaña Classify → elegir el algoritmo → "Cross-validation, Folds 10" → Start. Revisa el coeficiente de correlación y el error medio absoluto.',
+    algoritmos: ['weka.classifiers.functions.LinearRegression', 'weka.classifiers.trees.M5P'],
+    pasos: 'Classify → LinearRegression o M5P (clase: piezas) → validación cruzada de 10 folds → Start.',
+    vacio: 'Todavía no hay ventas en el almacén. Abre «Almacén de datos» para cargarlas.',
   },
   {
-    id: 'nivel_demanda', titulo: 'Nivel de demanda (baja, media, alta)', tarea: 'Clasificación',
-    pregunta: '¿La demanda de un combo en un día será baja, media o alta?',
-    decision: 'Producción diaria: cuánto preparar según el nivel esperado',
-    clase: 'nivel',
-    algoritmos: ['weka.classifiers.trees.J48', 'weka.classifiers.bayes.NaiveBayes', 'weka.classifiers.trees.RandomForest'],
-    pasos: 'Pestaña Classify → J48 → "Cross-validation, Folds 10" → Start. Con clic derecho en el resultado → "Visualize tree" se ve el árbol de decisión.',
-  },
-  {
-    id: 'canasta_productos', titulo: 'Canasta de productos por pedido', tarea: 'Reglas de asociación',
-    pregunta: '¿Qué productos se compran juntos y en qué temporada?',
-    decision: 'Combo de temporada: qué productos juntar en cada época',
-    clase: null,
-    algoritmos: ['weka.associations.Apriori', 'weka.associations.FPGrowth'],
-    pasos: 'Pestaña Associate → Apriori → Start. Baja "lowerBoundMinSupport" a 0.05 si salen pocas reglas.',
-  },
-  {
-    id: 'segmentos_pedidos', titulo: 'Segmentos de pedidos', tarea: 'Agrupamiento',
-    pregunta: '¿Qué tipos de pedido existen según tamaño, ingreso y margen?',
-    decision: 'Zona de entrega y producción: identificar pedidos grandes, medianos y chicos',
-    clase: null,
-    algoritmos: ['weka.clusterers.SimpleKMeans', 'weka.clusterers.EM'],
-    pasos: 'Pestaña Cluster → SimpleKMeans (numClusters = 3) → Start. En "Ignore attributes" puedes quitar columnas para probar.',
+    id: 'proveedor', titulo: 'Proveedor', tarea: 'Clasificación',
+    pregunta: '¿Qué proveedor entrega a tiempo y en cuántos días, según el insumo, el mes y la cantidad?',
+    clase: 'puntual',
+    algoritmos: ['weka.classifiers.trees.J48', 'weka.classifiers.bayes.NaiveBayes'],
+    pasos: 'Classify → J48 (clase: puntual) y revisa en el árbol qué proveedor aparece como más puntual para cada insumo.',
+    vacio: 'Todavía no hay pedidos a proveedor recibidos con fecha requerida. Regístralos en «Pedidos a proveedor».',
   },
 ];
 
@@ -57,75 +49,59 @@ async function rangoDeFechas() {
   return rows[0];
 }
 
-async function demandaFilas() {
+async function produccionDiaria() {
   const { desde, hasta } = await rangoDeFechas();
-  if (!desde) return [];
+  const vacio = { relacion: 'produccion_diaria', atributos: [], filas: [], notas: [] };
+  if (!desde) return vacio;
   const dias = (await db.query('SELECT fecha_key, nombre_mes, nombre_dia, es_fin_semana, temporada FROM dw.dim_fecha WHERE fecha BETWEEN $1 AND $2 ORDER BY fecha_key', [desde, hasta])).rows;
   const combos = (await db.query('SELECT combo_key, nombre FROM dw.dim_combo ORDER BY combo_key')).rows;
   const ventas = new Map((await db.query('SELECT fecha_key, combo_key, SUM(cantidad)::int AS piezas FROM dw.fact_ventas GROUP BY fecha_key, combo_key')).rows.map((x) => [x.fecha_key + ':' + x.combo_key, x.piezas]));
   if (dias.length * combos.length > MAX_FILAS) throw Object.assign(new Error('Hay demasiados días para exportar. Reduce el periodo del almacén.'), { status: 422 });
-  const out = [];
+  const f = [];
   for (const d of dias) for (const c of combos)
-    out.push({ mes: slug(d.nombre_mes), dia: slug(d.nombre_dia), fin: d.es_fin_semana ? 'si' : 'no', temporada: slug(d.temporada), combo: slug(c.nombre), piezas: ventas.get(d.fecha_key + ':' + c.combo_key) || 0 });
-  return out;
-}
-
-const unicos = (filas, k) => [...new Set(filas.map((f) => f[k]))];
-
-async function demandaDiaria() {
-  const f = await demandaFilas();
+    f.push([slug(d.nombre_mes), slug(d.nombre_dia), d.es_fin_semana ? 'si' : 'no', slug(d.temporada), slug(c.nombre), ventas.get(d.fecha_key + ':' + c.combo_key) || 0]);
   return {
-    relacion: 'demanda_diaria',
-    atributos: [nom('mes', MESES), nom('dia_semana', DIAS), nom('fin_de_semana', ['no', 'si']), nom('temporada', unicos(f, 'temporada')), nom('combo', unicos(f, 'combo')), num('piezas')],
-    filas: f.map((x) => [x.mes, x.dia, x.fin, x.temporada, x.combo, x.piezas]),
+    relacion: 'produccion_diaria',
+    atributos: [nom('mes', MESES), nom('dia_semana', DIAS), nom('fin_de_semana', ['no', 'si']), nom('temporada', [...new Set(f.map((x) => x[3]))]), nom('combo', combos.map((c) => slug(c.nombre))), num('piezas')],
+    filas: f,
     notas: ['Una fila por día y por combo (incluye los días sin ventas, con 0 piezas).', 'Atributo clase: piezas (el último).'],
   };
 }
 
-async function nivelDemanda() {
-  const f = await demandaFilas();
-  const orden = f.map((x) => x.piezas).sort((a, b) => a - b), n = orden.length;
-  const t1 = n ? orden[Math.floor(n / 3)] : 0, t2 = n ? orden[Math.floor((2 * n) / 3)] : 0;
-  const nivel = (p) => (p <= t1 ? 'baja' : p <= t2 ? 'media' : 'alta');
-  return {
-    relacion: 'nivel_demanda',
-    atributos: [nom('mes', MESES), nom('dia_semana', DIAS), nom('fin_de_semana', ['no', 'si']), nom('temporada', unicos(f, 'temporada')), nom('combo', unicos(f, 'combo')), nom('nivel', ['baja', 'media', 'alta'])],
-    filas: f.map((x) => [x.mes, x.dia, x.fin, x.temporada, x.combo, nivel(x.piezas)]),
-    notas: [`Nivel por piezas vendidas en el día: baja <= ${t1}, media <= ${t2}, alta > ${t2} (cortes en los tercios de los datos).`, 'Atributo clase: nivel (el último).'],
-  };
-}
-
-async function canasta() {
-  const prods = (await db.query(`SELECT DISTINCT pr.nombre FROM pedido_items pi JOIN productos pr ON pr.id = pi.producto_id JOIN dw.fact_ventas f ON f.pedido_id = pi.pedido_id ORDER BY pr.nombre`)).rows.map((x) => x.nombre);
-  const peds = (await db.query(`SELECT f.pedido_id, d.temporada, d.es_fin_semana,
-      COALESCE((SELECT array_agg(DISTINCT pr.nombre) FROM pedido_items pi JOIN productos pr ON pr.id = pi.producto_id WHERE pi.pedido_id = f.pedido_id), '{}') AS productos
-      FROM dw.fact_ventas f JOIN dw.dim_fecha d USING (fecha_key) ORDER BY f.pedido_id`)).rows;
-  if (peds.length > MAX_FILAS) throw Object.assign(new Error('Hay demasiados pedidos para exportar.'), { status: 422 });
-  const nombres = prods.map(slug);
-  const temporadas = [...new Set(peds.map((p) => slug(p.temporada)))];
-  return {
-    relacion: 'canasta_productos',
-    atributos: [nom('temporada', temporadas), nom('fin_de_semana', ['no', 'si']), ...nombres.map((n) => nom(n, ['si']))],
-    // En Weka, "?" (valor perdido) significa que el producto no está en el pedido.
-    filas: peds.map((p) => { const ya = new Set(p.productos.map(slug)); return [slug(p.temporada), p.es_fin_semana ? 'si' : 'no', ...nombres.map((n) => (ya.has(n) ? 'si' : null))]; }),
-    notas: ['Una fila por pedido. Cada producto vale "si" si está en el pedido y "?" (valor perdido) si no está.', 'Es el formato que espera el algoritmo Apriori. No tiene atributo clase.'],
-  };
-}
-
-async function segmentos() {
-  const { rows } = await db.query(`SELECT f.cantidad, f.ingreso, f.costo, d.dia_semana, d.mes,
-      (SELECT count(DISTINCT pi.producto_id) FROM pedido_items pi WHERE pi.pedido_id = f.pedido_id)::int AS productos
-      FROM dw.fact_ventas f JOIN dw.dim_fecha d USING (fecha_key) ORDER BY f.pedido_id`);
+async function comboTemporada() {
+  const { rows } = await db.query(`SELECT d.nombre_mes, d.nombre_dia, d.es_fin_semana, d.temporada, c.nombre AS combo
+      FROM dw.fact_ventas f JOIN dw.dim_fecha d USING (fecha_key) JOIN dw.dim_combo c USING (combo_key) ORDER BY f.pedido_id`);
   if (rows.length > MAX_FILAS) throw Object.assign(new Error('Hay demasiados pedidos para exportar.'), { status: 422 });
+  const combos = (await db.query('SELECT nombre FROM dw.dim_combo ORDER BY combo_key')).rows.map((x) => slug(x.nombre));
+  const f = rows.map((x) => [slug(x.temporada), slug(x.nombre_mes), slug(x.nombre_dia), x.es_fin_semana ? 'si' : 'no', slug(x.combo)]);
   return {
-    relacion: 'segmentos_pedidos',
-    atributos: [num('piezas'), num('productos_distintos'), num('ingreso'), num('costo'), num('margen_pct'), num('dia_semana'), num('mes')],
-    filas: rows.map((x) => { const ing = Number(x.ingreso), cos = Number(x.costo); return [x.cantidad, x.productos, r2(ing), r2(cos), ing ? r2(((ing - cos) / ing) * 100) : 0, x.dia_semana, x.mes]; }),
-    notas: ['Una fila por pedido. Todos los atributos son numéricos (dia_semana: 1 = lunes, 7 = domingo).', 'No tiene atributo clase: es para agrupamiento.'],
+    relacion: 'combo_temporada',
+    atributos: [nom('temporada', [...new Set(f.map((x) => x[0]))]), nom('mes', MESES), nom('dia_semana', DIAS), nom('fin_de_semana', ['no', 'si']), nom('combo', combos)],
+    filas: f,
+    notas: ['Una fila por pedido. Atributo clase: combo (el último).', 'Todos los atributos son nominales, así que sirve para J48 y también para Apriori.'],
   };
 }
 
-const CONSTRUCTORES = { demanda_diaria: demandaDiaria, nivel_demanda: nivelDemanda, canasta_productos: canasta, segmentos_pedidos: segmentos };
+async function proveedor() {
+  const { rows } = await db.query(`SELECT pr.nombre AS proveedor, i.nombre AS insumo,
+      to_char(pp.creado_en AT TIME ZONE ${"'America/Mexico_City'"}, 'MM')::int AS mes, it.cantidad::float AS cantidad,
+      GREATEST(0, (pp.recibido_en AT TIME ZONE ${"'America/Mexico_City'"})::date - (pp.creado_en AT TIME ZONE ${"'America/Mexico_City'"})::date) AS dias,
+      CASE WHEN (pp.recibido_en AT TIME ZONE ${"'America/Mexico_City'"})::date <= pp.fecha_requerida THEN 'si' ELSE 'no' END AS puntual
+      FROM pedidos_proveedor pp JOIN proveedores pr ON pr.id = pp.proveedor_id
+      JOIN pedido_proveedor_items it ON it.pedido_id = pp.id JOIN insumos i ON i.id = it.insumo_id
+      WHERE pp.estado = 'recibido' AND pp.recibido_en IS NOT NULL AND pp.fecha_requerida IS NOT NULL
+      ORDER BY pp.id, i.id`);
+  if (rows.length > MAX_FILAS) throw Object.assign(new Error('Hay demasiados pedidos para exportar.'), { status: 422 });
+  const f = rows.map((x) => [slug(x.proveedor), slug(x.insumo), MESES[x.mes - 1], r2(x.cantidad), Number(x.dias), x.puntual]);
+  return {
+    relacion: 'proveedor',
+    atributos: [nom('proveedor', [...new Set(f.map((x) => x[0]))]), nom('insumo', [...new Set(f.map((x) => x[1]))]), nom('mes', MESES), num('cantidad'), num('dias_entrega'), nom('puntual', ['no', 'si'])],
+    filas: f,
+    notas: ['Una fila por insumo recibido en un pedido a proveedor (solo pedidos recibidos con fecha requerida).', 'dias_entrega: días entre el pedido y la recepción. puntual: si se recibió en o antes de la fecha requerida.', 'Atributo clase: puntual (el último).'],
+  };
+}
+
+const CONSTRUCTORES = { combo_temporada: comboTemporada, produccion_diaria: produccionDiaria, proveedor };
 const IDS = Object.keys(CONSTRUCTORES);
 
 // ---------- Formatos de salida ----------
@@ -151,23 +127,18 @@ async function catalogo() {
   const out = [];
   for (const c of CATALOGO) {
     const ds = await construir(c.id);
-    out.push({ ...c, filas: ds.filas.length, atributos: ds.atributos.map((a) => ({ nombre: a.nombre, tipo: a.tipo === 'numerico' ? 'numérico' : 'nominal' })),
-      vista: ds.filas.slice(0, 5).map((f) => f.map((v) => (v === null ? '?' : String(v)))), notas: ds.notas });
+    out.push({ ...c, filas: ds.filas.length, atributos: ds.atributos.length });
   }
-  return { datasets: out, weka: 'Weka 3.9.6' };
+  const demo = require('./ventas-demo');
+  return { datasets: out, weka: 'Weka 3.9.6', demo: (await demo.hay(db)) > 0, demo_proveedores: (await demo.hayProveedores(db)) > 0 };
 }
 
 async function descargar(id, formato = 'arff') {
   if (formato !== 'arff' && formato !== 'csv') throw Object.assign(new Error('Formato no válido. Usa arff o csv.'), { status: 400 });
   await wh.sincronizar();
-  const ids = id === 'todos' ? IDS : [id];
-  const archivos = [];
-  for (const i of ids) {
-    const ds = await construir(i);
-    if (!ds.filas.length) throw Object.assign(new Error('Todavía no hay ventas en el almacén. Carga los datos primero.'), { status: 409 });
-    archivos.push({ nombre: `${ds.relacion}.${formato}`, contenido: formato === 'arff' ? aArff(ds) : aCsv(ds), formato });
-  }
-  return { archivos };
+  const ds = await construir(id);
+  if (!ds.filas.length) throw Object.assign(new Error(CATALOGO.find((c) => c.id === id).vacio), { status: 409 });
+  return { archivos: [{ nombre: `${ds.relacion}.${formato}`, contenido: formato === 'arff' ? aArff(ds) : aCsv(ds), formato }] };
 }
 
 module.exports = { catalogo, descargar, construir, aArff, aCsv, slug, IDS, CATALOGO };

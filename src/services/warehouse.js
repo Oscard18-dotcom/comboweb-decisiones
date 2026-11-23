@@ -69,6 +69,7 @@ async function cargar({ demo: conDemo = false, usuarioId = null } = {}) {
   try {
     await c.query('BEGIN');
     const creadas = conDemo ? await demo.asegurar(c) : 0;
+    if (conDemo) await demo.asegurarProveedores(c);
     const pedidos = await cargarPedidos(c);
     await c.query('INSERT INTO dw.carga_log(usuario_id,tipo,filas,detalle) VALUES($1,$2,$3,$4)', [usuarioId, 'pedidos', pedidos, `pedidos cargados: ${pedidos}` + (creadas ? `; ventas de demostración registradas: ${creadas}` : '')]);
     await c.query('COMMIT');

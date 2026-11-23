@@ -126,7 +126,48 @@ async function asegurar(c, hoy) {
   return pedidos.length;
 }
 
+// ---------- Proveedores de demostración (para la decisión "proveedor") ----------
+const PROV_DOMINIO = '@proveedor.demo.encombo.test';
+const PROVEEDORES_DEMO = [
+  { nombre: 'La Espiga (demostración)', correo: 'laespiga' + PROV_DOMINIO, insumos: ['Harina', 'Azúcar', 'Mantequilla', 'Cacao'], dias: 2, puntual: 0.92 },
+  { nombre: 'Insumos del Valle (demostración)', correo: 'valle' + PROV_DOMINIO, insumos: ['Café molido', 'Leche', 'Té chai', 'Cacao', 'Mantequilla'], dias: 4, puntual: 0.6 },
+  { nombre: 'Empaques Xalapa (demostración)', correo: 'empaques' + PROV_DOMINIO, insumos: ['Caja chica', 'Caja mediana', 'Caja grande', 'Azúcar'], dias: 3, puntual: 0.8 },
+];
+async function hayProveedores(q) {
+  return (await q.query('SELECT count(*)::int AS n FROM proveedores WHERE correo LIKE $1', ['%' + PROV_DOMINIO])).rows[0].n;
+}
+async function asegurarProveedores(c, hoy) {
+  if (await hayProveedores(c)) return 0;
+  if (!hoy) { const [y, m, d] = require('./pedidos').todayMX().split('-').map(Number); hoy = new Date(Date.UTC(y, m - 1, d)); }
+  const insumos = new Map((await c.query('SELECT id,nombre,stock_minimo FROM insumos')).rows.map((x) => [x.nombre, x]));
+  const r = rng(20261122), fin = sumaDias(hoy, -8);
+  let creados = 0;
+  for (const [k, pv] of PROVEEDORES_DEMO.entries()) {
+    const id = (await c.query('INSERT INTO proveedores(nombre,correo,contacto,notas,activo) VALUES($1,$2,$3,$4,true) RETURNING id', [pv.nombre, pv.correo, 'Datos de demostración', 'Proveedor de demostración para practicar con Weka'])).rows[0].id;
+    const lista = pv.insumos.map((n) => insumos.get(n)).filter(Boolean);
+    for (const i of lista) await c.query('INSERT INTO proveedor_insumos(proveedor_id,insumo_id) VALUES($1,$2) ON CONFLICT DO NOTHING', [id, i.id]);
+    if (!lista.length) continue;
+    for (let d = sumaDias(fin, -364 + k * 3); d <= fin; d = sumaDias(d, 14)) {
+      const bien = r() < pv.puntual;
+      const dias = bien ? Math.min(3, Math.max(1, pv.dias - 1 + Math.floor(r() * 3))) : 4 + Math.floor(r() * 3);
+      const pid = (await c.query(`INSERT INTO pedidos_proveedor(proveedor_id,estado,suma_stock_en,stock_aplicado,nota,fecha_requerida,creado_en,recibido_en)
+        VALUES($1,'recibido','recepcion',true,'Pedido de demostración',$2::date + 3,($2::date + time '09:00') AT TIME ZONE 'America/Mexico_City',(($2::date + $3::int) + time '12:00') AT TIME ZONE 'America/Mexico_City') RETURNING id`, [id, iso(d), dias])).rows[0].id;
+      const cuantos = 1 + Math.floor(r() * Math.min(3, lista.length)), usados = new Set();
+      while (usados.size < cuantos) usados.add(lista[Math.floor(r() * lista.length)]);
+      for (const i of usados) await c.query('INSERT INTO pedido_proveedor_items(pedido_id,insumo_id,cantidad) VALUES($1,$2,$3)', [pid, i.id, Math.max(1, Math.round(Number(i.stock_minimo) * (1 + Math.floor(r() * 3))))]);
+      creados++;
+    }
+  }
+  return creados;
+}
+async function quitarProveedores(c) {
+  const ids = `SELECT id FROM proveedores WHERE correo LIKE '%${PROV_DOMINIO}'`;
+  await c.query(`DELETE FROM pedidos_proveedor WHERE proveedor_id IN (${ids})`);
+  await c.query(`DELETE FROM proveedores WHERE correo LIKE '%${PROV_DOMINIO}'`);
+}
+
 async function quitar(c) {
+  await quitarProveedores(c);
   const ids = `SELECT p.id FROM pedidos p JOIN usuarios u ON u.id=p.cliente_id WHERE lower(u.correo)='${CORREO}'`;
   await c.query(`DELETE FROM movimientos_inventario WHERE pedido_id IN (${ids})`);
   const r = await c.query(`DELETE FROM pedidos WHERE id IN (${ids})`);
@@ -139,4 +180,4 @@ async function asegurarConexion(hoy) {
   catch (e) { await c.query('ROLLBACK'); throw e; } finally { c.release(); }
 }
 
-module.exports = { CORREO, asegurar, quitar, hay, ajustarCostos, revertirCostos, asegurarConexion, COSTOS_ACTUALES };
+module.exports = { CORREO, asegurar, quitar, hay, asegurarProveedores, hayProveedores, ajustarCostos, revertirCostos, asegurarConexion, COSTOS_ACTUALES };

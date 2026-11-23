@@ -153,7 +153,7 @@ En **Mis pedidos** y en el comprobante hay una **línea de tiempo** con la fecha
   - `npm run db:seed` **ya no crea cuentas de prueba cuando `NODE_ENV=production`**.
   - `npm run instalar` (o `instalar.bat`) es el asistente de instalación; `npm run respaldo` guarda una copia de la base de datos en `respaldos/` (se conservan las últimas 14).
 - **Seguridad:** barrido automático de permisos de **todas** las rutas con cada rol (una ruta nueva sin clasificar hace fallar la prueba), ataques a tokens, archivos internos no expuestos, cuerpos enormes (413), carga simultánea.
-- **Minería con Weka** (pestaña de Toma de decisiones): descarga en formato ARFF o CSV cuatro conjuntos de datos del almacén (demanda diaria, nivel de demanda, canasta de productos y segmentos de pedidos) para analizarlos en Weka 3.9.6. Guía: `docs/Guia_de_mineria_de_datos_con_Weka`. Prueba: `npm run test:weka`.
+- **Weka** (pestaña de Toma de decisiones): descarga en formato ARFF o CSV tres conjuntos de datos (combo de temporada, producción diaria y proveedor) para analizarlos en Weka 3.9.6. Guía: `docs/Guia_de_mineria_de_datos_con_Weka`. Prueba: `npm run test:weka`.
 - **Documentación** (carpeta `docs/`): **Manual de usuario** (por rol, con capturas reales, plan de capacitación y lista de aceptación para la Product Owner) y **Documentación técnica** (arquitectura, datos, seguridad, API, pruebas, despliegue y mantenimiento). Vienen en Word y PDF.
 
 ### Para publicar el sistema
