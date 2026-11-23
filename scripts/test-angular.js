@@ -54,6 +54,16 @@ const esperar = async (fn, ms = 8000) => { const s = Date.now(); while (Date.now
     t('ya no hay botones de cargar ni de quitar la demostración, ni filtros de origen', (await fr.locator('[data-acc=etl-demo], [data-acc=etl], [data-acc=quitar-demo], [data-origen]').count()) === 0);
     const [dl2] = await Promise.all([pg.waitForEvent('download', { timeout: 8000 }), fr.locator('[data-acc=exportar-dw]').click()]);
     t('exportar para Power BI descarga CSV del esquema estrella', /^dw_.*\.csv$/.test(dl2.suggestedFilename()), dl2.suggestedFilename());
+    await fr.locator('[data-s=weka]').click();
+    t('Weka: aparece la pestaña con los 4 conjuntos de datos y sus tareas', !!(await esperar(async () => (await fr.locator('[data-weka]').count()) === 4)) && /Regresión/.test(await fr.locator('app-weka').textContent()) && /Reglas de asociación/.test(await fr.locator('app-weka').textContent()) && /Agrupamiento/.test(await fr.locator('app-weka').textContent()));
+    await fr.locator('[data-acc=ver-canasta_productos]').click();
+    t('Weka: la vista previa muestra la tabla con los atributos', !!(await esperar(async () => (await fr.locator('table[data-vista=canasta_productos] tbody tr').count()) === 5 && /te_chai/.test(await fr.locator('table[data-vista=canasta_productos] thead').textContent()))));
+    const [dlw] = await Promise.all([pg.waitForEvent('download', { timeout: 8000 }), fr.locator('[data-acc=bajar-nivel_demanda]').click()]);
+    const txtw = require('fs').readFileSync(await dlw.path(), 'utf8');
+    t('Weka: descarga nivel_demanda.arff con @RELATION, atributos y datos', dlw.suggestedFilename() === 'nivel_demanda.arff' && /@RELATION nivel_demanda/.test(txtw) && /@ATTRIBUTE nivel \{baja,media,alta\}/.test(txtw) && /@DATA/.test(txtw) && txtw.charCodeAt(0) !== 0xfeff, dlw.suggestedFilename());
+    await fr.locator('[data-fmt=csv]').click();
+    const [dlc] = await Promise.all([pg.waitForEvent('download', { timeout: 8000 }), fr.locator('[data-acc=bajar-segmentos_pedidos]').click()]);
+    t('Weka: al elegir CSV descarga un .csv con encabezados', dlc.suggestedFilename() === 'segmentos_pedidos.csv' && /^\uFEFFpiezas,productos_distintos,ingreso/.test(require('fs').readFileSync(await dlc.path(), 'utf8')));
     await fr.locator('[data-s=hist]').click();
     await fr.locator('[data-ir=rep]').first().click();
     t('el enlace "Abrir Reportes" cambia a la pestaña Reportes', !!(await esperar(async () => (await pg.locator('#staff > .seg button.on').textContent()) === 'Reportes')));

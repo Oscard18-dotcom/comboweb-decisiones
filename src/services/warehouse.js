@@ -95,7 +95,7 @@ async function conciliacion() {
   return { sistema, almacen, coincide: sistema.pedidos === almacen.pedidos && Math.abs(sistema.ventas - almacen.ventas) < 0.01 && Math.abs(sistema.costo - almacen.costo) < 0.05 };
 }
 
-async function resumen() {
+async function sincronizar() {
   let conc = await conciliacion();
   if (!conc.coincide && conc.sistema.pedidos > 0) {
     const c = await db.pool.connect();
@@ -103,6 +103,11 @@ async function resumen() {
     catch (e) { await c.query('ROLLBACK'); throw e; } finally { c.release(); }
     conc = await conciliacion();
   }
+  return conc;
+}
+
+async function resumen() {
+  const conc = await sincronizar();
   const q = async (sql) => (await db.query(sql)).rows;
   const [k] = await q('SELECT COALESCE(SUM(ingreso),0) AS ingreso, COALESCE(SUM(costo),0) AS costo, COALESCE(SUM(cantidad),0) AS piezas, COUNT(*) AS pedidos FROM dw.fact_ventas');
   const meses = await q(`SELECT d.anio, d.mes, d.nombre_mes, SUM(f.ingreso) AS ingreso, SUM(f.ingreso-f.costo) AS utilidad, SUM(f.cantidad) AS piezas FROM dw.fact_ventas f JOIN dw.dim_fecha d USING (fecha_key) GROUP BY d.anio,d.mes,d.nombre_mes ORDER BY d.anio,d.mes`);
@@ -132,4 +137,4 @@ async function exportar() {
     { nombre: 'dw_fact_ventas.csv', contenido: csv(['venta_id', 'fecha_key', 'combo_key', 'pedido_id', 'cantidad', 'ingreso', 'costo'], h) }] };
 }
 
-module.exports = { cargar, quitarDemo, resumen, exportar, temporada, conciliacion };
+module.exports = { cargar, quitarDemo, resumen, exportar, temporada, conciliacion, sincronizar };

@@ -2,13 +2,14 @@ import { Component, signal } from '@angular/core';
 import { Analizar } from './decisiones/analizar';
 import { Historial } from './decisiones/historial';
 import { Warehouse } from './warehouse/warehouse';
+import { Weka } from './weka/weka';
 import { Contexto } from './contexto/contexto';
 
-type Vista = 'analizar' | 'hist' | 'dw';
+type Vista = 'analizar' | 'hist' | 'dw' | 'weka';
 
 @Component({
   selector: 'app-root',
-  imports: [Analizar, Historial, Warehouse, Contexto],
+  imports: [Analizar, Historial, Warehouse, Weka, Contexto],
   template: `
     <div class="hoja">
       <header class="cab">
@@ -25,6 +26,7 @@ type Vista = 'analizar' | 'hist' | 'dw';
         @case ('analizar') { <app-analizar /> }
         @case ('hist') { <app-historial /> }
         @case ('dw') { <app-warehouse /> }
+        @case ('weka') { <app-weka /> }
       }
     </div>
   `,
@@ -35,5 +37,6 @@ export class App {
     { k: 'analizar', n: 'Analizar una decisión' },
     { k: 'hist', n: 'Decisiones registradas' },
     { k: 'dw', n: 'Almacén de datos' },
+    { k: 'weka', n: 'Minería con Weka' },
   ];
 }

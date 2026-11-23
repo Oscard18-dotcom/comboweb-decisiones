@@ -32,7 +32,8 @@
     "test:sprint10": "node scripts/test-sprint10.js",
     "ventas-demo": "node scripts/ventas-demo.js",
     "ventas-demo:quitar": "node scripts/ventas-demo.js --quitar",
-    "test:proteccion": "node scripts/test-proteccion.js"
+    "test:proteccion": "node scripts/test-proteccion.js",
+    "test:weka": "node scripts/test-weka.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

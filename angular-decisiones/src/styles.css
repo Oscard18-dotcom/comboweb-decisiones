@@ -126,3 +126,4 @@ details.seccion[open]>summary::after{transform:rotate(-135deg)}
 details.seccion[open]>summary{border-bottom:1px solid var(--regla2);border-radius:14px 14px 0 0;margin-bottom:14px}
 details.seccion>*:not(summary){margin-left:18px;margin-right:18px}
 details.seccion>.tw,details.seccion>table{width:auto}
+.mini.on{background:var(--pri);color:var(--onpri)}
