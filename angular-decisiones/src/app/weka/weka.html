@@ -1,14 +1,13 @@
 @if (error()) { <p class="err" role="alert">{{ error() }}</p> }
 @if (exito()) { <p class="okmsg" role="status">{{ exito() }}</p> }
-@if (cargando()) { <p class="mu" role="status">Preparando los datos…</p> }
+@if (preparando()) { <p class="mu" role="status">Preparando los datos de demostración…</p> }
 
-@for (d of datos(); track d.id) {
+@for (d of bloques; track d.id) {
   <div class="card" [attr.data-weka]="d.id">
     <p class="rotulo">{{ d.titulo }}</p>
     <p>{{ d.pregunta }}</p>
     <div class="row filtros">
-      <button class="mini" type="button" [attr.data-acc]="'arff-' + d.id" [disabled]="ocupado() || d.filas === 0" (click)="bajar(d.id)">Descargar ARFF</button>
+      <button class="mini" type="button" [attr.data-acc]="'arff-' + d.id" [disabled]="ocupado()" (click)="bajar(d.id)">Descargar ARFF</button>
     </div>
-    @if (d.filas === 0) { <p class="mu" role="status">{{ d.vacio }}</p> }
   </div>
 }
