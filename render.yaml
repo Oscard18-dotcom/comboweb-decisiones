@@ -5,7 +5,7 @@ services:
     plan: free
     buildCommand: npm install --omit=dev
     startCommand: npm run start:nube
-    healthCheckPath: /api/salud
+    healthCheckPath: /
     envVars:
       - key: NODE_VERSION
         value: "22"
